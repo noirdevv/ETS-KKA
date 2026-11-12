@@ -9,7 +9,7 @@ from src.gui import GameGUI
 
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SCALED | pygame.FULLSCREEN)
     pygame.display.set_caption(TITLE)
     clock = pygame.time.Clock()
 
@@ -26,6 +26,8 @@ def main():
                     running = False
                 elif event.key == pygame.K_r:
                     state = GameState(ROW, COL)
+                elif event.key == pygame.K_F11:
+                    pygame.display.toggle_fullscreen()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if state.is_game_over():
                     state = GameState(ROW, COL)
