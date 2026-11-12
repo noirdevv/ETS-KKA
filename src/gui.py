@@ -3,18 +3,29 @@ import pygame
 from config import (
     P1, P2, P1_NAME, P2_NAME,
     CELL_SIZE, MARGIN, PANEL_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT,
-    DOT_RADIUS, LINE_WIDTH, CLICK_TOLERANCE,
-    COLOR_BG, COLOR_DOT, COLOR_EMPTY_LINE, COLOR_HOVER_LINE, COLOR_TEXT,
-    COLOR_P1, COLOR_P2, COLOR_BOX_P1, COLOR_BOX_P2,
+    CLICK_TOLERANCE, COLOR_P1, COLOR_P2,
 )
 from src.game_logic import HORIZONTAL, VERTICAL
 
+COLOR_BOARD = (253, 232, 228)
+COLOR_BAR = (255, 99, 92)
+COLOR_EMPTY = (255, 255, 255)
+COLOR_DOT_BLACK = (0, 0, 0)
+COLOR_WHITE = (255, 255, 255)
+COLOR_DARK = (60, 30, 30)
+COLOR_MUTED = (130, 100, 100)
+
+LINE_THICK = 10
+DOT_R = 9
+FOOTER_HEIGHT = 40
+
 PLAYER_COLOR = {P1: COLOR_P1, P2: COLOR_P2}
-BOX_COLOR = {P1: COLOR_BOX_P1, P2: COLOR_BOX_P2}
+BOX_COLOR = {P1: (246, 168, 168), P2: (172, 196, 245)}
 PLAYER_NAME = {P1: P1_NAME, P2: P2_NAME}
 
-COLOR_PANEL = (232, 232, 226)
-COLOR_MUTED = (120, 120, 120)
+
+def lighten(color, amount=0.5):
+    return tuple(int(c + (255 - c) * amount) for c in color)
 
 
 class GameGUI:
@@ -50,26 +61,39 @@ class GameGUI:
         return min(candidates)[1] if candidates else None
 
     def draw(self, screen, state, hover=None):
-        screen.fill(COLOR_BG)
-        self._draw_panel(screen, state)
+        screen.fill(COLOR_BOARD)
         self._draw_boxes(screen, state)
         self._draw_lines(screen, state, hover)
         self._draw_dots(screen, state)
+        self._draw_top_bar(screen, state)
+        self._draw_footer(screen, state)
         if state.is_game_over():
             self._draw_game_over(screen, state)
 
-    def _draw_panel(self, screen, state):
-        pygame.draw.rect(screen, COLOR_PANEL, (0, 0, WINDOW_WIDTH, PANEL_HEIGHT))
+    def _draw_top_bar(self, screen, state):
+        pygame.draw.rect(screen, COLOR_BAR, (0, 0, WINDOW_WIDTH, PANEL_HEIGHT))
         over = state.is_game_over()
         for i, p in enumerate((P1, P2)):
             cx = WINDOW_WIDTH * (2 * i + 1) // 4
-            if p == state.curr_player and not over:
-                pygame.draw.rect(screen, PLAYER_COLOR[p],
-                                 (cx - 85, 10, 170, PANEL_HEIGHT - 20), 3, border_radius=12)
-            name = self.font.render(PLAYER_NAME[p], True, PLAYER_COLOR[p])
-            score = self.font_big.render(str(state.score[p]), True, COLOR_TEXT)
+            active = (p == state.curr_player) and not over
+            if active:
+                pygame.draw.rect(screen, COLOR_WHITE,
+                                 (cx - 85, 10, 170, PANEL_HEIGHT - 20), border_radius=14)
+            fg = COLOR_BAR if active else COLOR_WHITE
+            name = self.font.render(PLAYER_NAME[p], True, fg)
+            score = self.font_big.render(str(state.score[p]), True, fg)
             screen.blit(name, name.get_rect(center=(cx, 34)))
             screen.blit(score, score.get_rect(center=(cx, 68)))
+
+    def _draw_footer(self, screen, state):
+        y = WINDOW_HEIGHT - FOOTER_HEIGHT
+        pygame.draw.rect(screen, COLOR_BAR, (0, y, WINDOW_WIDTH, FOOTER_HEIGHT))
+        if state.is_game_over():
+            text = "Permainan selesai"
+        else:
+            text = f"Giliran: {PLAYER_NAME[state.curr_player]}"
+        label = self.font.render(text, True, COLOR_WHITE)
+        screen.blit(label, label.get_rect(center=(WINDOW_WIDTH // 2, y + FOOTER_HEIGHT // 2)))
 
     def _draw_boxes(self, screen, state):
         for r in range(state.row):
@@ -89,7 +113,7 @@ class GameGUI:
                 owner = int(state.h_line[r, c])
                 if owner == 0:
                     a, b = self._endpoints((HORIZONTAL, r, c))
-                    pygame.draw.line(screen, COLOR_EMPTY_LINE, a, b, 2)
+                    pygame.draw.line(screen, COLOR_EMPTY, a, b, LINE_THICK)
                 else:
                     taken.append(((HORIZONTAL, r, c), owner))
         for r in range(state.row):
@@ -97,41 +121,42 @@ class GameGUI:
                 owner = int(state.v_line[r, c])
                 if owner == 0:
                     a, b = self._endpoints((VERTICAL, r, c))
-                    pygame.draw.line(screen, COLOR_EMPTY_LINE, a, b, 2)
+                    pygame.draw.line(screen, COLOR_EMPTY, a, b, LINE_THICK)
                 else:
                     taken.append(((VERTICAL, r, c), owner))
 
         for move, owner in taken:
             a, b = self._endpoints(move)
             if move == state.last_move:
-                pygame.draw.line(screen, COLOR_TEXT, a, b, LINE_WIDTH + 4)
-            pygame.draw.line(screen, PLAYER_COLOR[owner], a, b, LINE_WIDTH)
+                pygame.draw.line(screen, COLOR_DARK, a, b, LINE_THICK + 4)
+            pygame.draw.line(screen, PLAYER_COLOR[owner], a, b, LINE_THICK)
 
         if hover is not None and not state.is_game_over():
             a, b = self._endpoints(hover)
-            pygame.draw.line(screen, COLOR_HOVER_LINE, a, b, LINE_WIDTH)
+            pygame.draw.line(screen, lighten(PLAYER_COLOR[state.curr_player], 0.45),
+                             a, b, LINE_THICK)
 
     def _draw_dots(self, screen, state):
         for r in range(state.row + 1):
             for c in range(state.col + 1):
-                pygame.draw.circle(screen, COLOR_DOT, self.dot_pos(r, c), DOT_RADIUS)
+                pygame.draw.circle(screen, COLOR_DOT_BLACK, self.dot_pos(r, c), DOT_R)
 
     def _draw_game_over(self, screen, state):
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((245, 245, 240, 215))
+        overlay.fill((*COLOR_BOARD, 225))
         screen.blit(overlay, (0, 0))
 
         winner = state.get_winner()
         if winner in PLAYER_NAME:
             title, color = f"{PLAYER_NAME[winner]} Menang!", PLAYER_COLOR[winner]
         else:
-            title, color = "Seri!", COLOR_TEXT
+            title, color = "Seri!", COLOR_DARK
         score_txt = f"{state.score[P1]}  -  {state.score[P2]}"
 
         cx, cy = WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2
         for surf, dy in (
             (self.font_big.render(title, True, color), -30),
-            (self.font.render(score_txt, True, COLOR_TEXT), 12),
+            (self.font.render(score_txt, True, COLOR_DARK), 12),
             (self.font_small.render("Klik atau tekan R untuk main lagi", True, COLOR_MUTED), 50),
         ):
             screen.blit(surf, surf.get_rect(center=(cx, cy + dy)))
