@@ -65,9 +65,10 @@ class GameGUI:
         self.pressed_key = None
         self.confirm_action = None  # "menu" | "restart" | None
 
-        # Skins
+        # Skins and background
         self.selected_skin = "classic"
         self._skin_cache = {}  # Cache gambar PNG yang sudah di-resize per cell_size
+        self._bg_cache = {}
 
     @property
     def _player_colors(self):
@@ -111,7 +112,7 @@ class GameGUI:
 
     # Rendering menu
     def draw_menu(self, screen):
-        screen.fill(self.theme["BG"])
+        self._draw_background(screen)
         self.buttons.clear()
         self.game_buttons.clear()
         self.modal_buttons.clear()
@@ -127,6 +128,44 @@ class GameGUI:
             self._draw_settings_screen(screen)
 
         self._update_cursor(pygame.mouse.get_pos())
+
+    def _draw_background(self, screen):
+        """Render background dengan pola grid Dots & Boxes halus yang di-cache."""
+        if self.theme_name not in self._bg_cache:
+            surf = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
+            bg = self.theme["BG"]
+            surf.fill(bg)
+
+            # Warna garis & titik sangat tipis (~5-7% kontras dari BG agar tidak ramai)
+            if self.theme_name == "dark":
+                line_col = lighten(bg, 0.045)
+                dot_col = lighten(bg, 0.11)
+                accent_col = lighten(bg, 0.065)
+            else:
+                line_col = darken(bg, 0.045)
+                dot_col = darken(bg, 0.12)
+                accent_col = darken(bg, 0.065)
+
+            step = 44  # Jarak antar titik pola
+            for x in range(22, WINDOW_WIDTH, step):
+                pygame.draw.line(surf, line_col, (x, 0), (x, WINDOW_HEIGHT), 1)
+            for y in range(22, WINDOW_HEIGHT, step):
+                pygame.draw.line(surf, line_col, (0, y), (WINDOW_WIDTH, y), 1)
+
+            # Isi beberapa kotak kecil secara jarang agar terasa seperti papan game
+            for gx, x in enumerate(range(22, WINDOW_WIDTH - step, step)):
+                for gy, y in enumerate(range(22, WINDOW_HEIGHT - step, step)):
+                    if (gx * 7 + gy * 13) % 11 == 0:
+                        pygame.draw.rect(surf, accent_col, (x + 4, y + 4, step - 8, step - 8), border_radius=6)
+
+            # Titik-titik kecil di setiap persimpangan grid
+            for x in range(22, WINDOW_WIDTH, step):
+                for y in range(22, WINDOW_HEIGHT, step):
+                    pygame.draw.circle(surf, dot_col, (x, y), 2)
+
+            self._bg_cache[self.theme_name] = surf
+
+        screen.blit(self._bg_cache[self.theme_name], (0, 0))
 
     def _draw_home_screen(self, screen):
         pygame.draw.rect(screen, self.theme["BAR"], (0, 0, WINDOW_WIDTH, 18))
@@ -564,7 +603,7 @@ class GameGUI:
         self.modal_buttons.clear()
 
         labels = self._player_labels(mode, ai_type)
-        screen.fill(self.theme["BG"])
+        self._draw_background(screen)
         self._draw_boxes(screen, state)
         self._draw_lines(screen, state, hover)
         self._draw_dots(screen, state)
