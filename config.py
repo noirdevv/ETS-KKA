@@ -24,6 +24,7 @@ MCTS = 'mcts'
 MINIMAX_DEPTH = 4
 MCTS_ITERATION = 1000
 MCTS_EXPLORATION = 1.41 #sqrt(2)
+MCTS_ROLLOUT_CUTOFF = 20 #maks plies simulasi sebelum evaluasi posisi statis
 AI_MOVE_DELAY = 0.5 #detik
 
 #PYGAME

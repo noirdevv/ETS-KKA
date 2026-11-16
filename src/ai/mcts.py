@@ -1,6 +1,6 @@
 import math
 import random
-from config import MCTS_EXPLORATION, MCTS_ITERATION, P1, P2
+from config import MCTS_EXPLORATION, MCTS_ITERATION, MCTS_ROLLOUT_CUTOFF, P1, P2, EMPTY
 
 
 class MCTSNode:
@@ -59,10 +59,39 @@ class MCTSNode:
         self.wins += reward
 
 
+def count_three_sided_boxes(state):
+    """How many capturable one-edge-missing boxes exist right now."""
+    threes = 0
+    for r in range(state.row):
+        for c in range(state.col):
+            if state.box_owner[r, c] == EMPTY and state.count_box_sides(r, c) == 3:
+                threes += 1
+    return threes
+
+
+def evaluate_position(state):
+    """Static position evaluation, from P1's perspective, normalized to [-1, 1].
+
+    Signed box diff so far, plus the boxes the player to move is about to
+    bank (every three-sided box is an almost-certain capture), all divided
+    by the total number of boxes on the board.
+    """
+    boxes = state.row * state.col
+    margin_boxes = state.score[P1] - state.score[P2]
+    side = 1 if state.curr_player == P1 else -1
+    adjusted = margin_boxes + side * count_three_sided_boxes(state)
+    return max(-1.0, min(1.0, adjusted / boxes))
+
+
 def heuristic_rollout(state):
-    """Simulates a game using tiered domain heuristics for Dots and Boxes."""
+    """Simulates a game using tiered domain heuristics for Dots and Boxes.
+
+    Stops early at MCTS_ROLLOUT_CUTOFF plies and statically evaluates the
+    position instead of playing to terminal.
+    """
     current = state.copy()
-    while not current.is_game_over():
+    plies = 0
+    while not current.is_game_over() and plies < MCTS_ROLLOUT_CUTOFF:
         capturing = current.get_capturing_moves()
         if capturing:
             move = random.choice(capturing)
@@ -73,7 +102,10 @@ def heuristic_rollout(state):
             else:
                 move = random.choice(current.get_legal_moves())
         current.make_move(move)
-    return get_margin(current)
+        plies += 1
+    if current.is_game_over():
+        return get_margin(current)
+    return evaluate_position(current)
 
 def get_margin(state):
     """Returns the margin of victory for terminal state."""
@@ -96,9 +128,9 @@ def get_mcts_move(state, iterations=MCTS_ITERATION, c_param=MCTS_EXPLORATION, us
         return legal_moves[0]
 
     # Fast-path optimization: if an immediate capturing move exists, take it
-    capturing_moves = state.get_capturing_moves()
-    if capturing_moves:
-        return random.choice(capturing_moves)
+    # capturing_moves = state.get_capturing_moves()
+    # if capturing_moves:
+    #     return random.choice(capturing_moves)
 
     root = MCTSNode(state=state.copy())
 
@@ -118,9 +150,14 @@ def get_mcts_move(state, iterations=MCTS_ITERATION, c_param=MCTS_EXPLORATION, us
             margin = heuristic_rollout(node.state)
         else:
             current = node.state.copy()
-            while not current.is_game_over():
+            plies = 0
+            while not current.is_game_over() and plies < MCTS_ROLLOUT_CUTOFF:
                 current.make_move(random.choice(current.get_legal_moves()))
-            margin = get_margin(current)
+                plies += 1
+            if current.is_game_over():
+                margin = get_margin(current)
+            else:
+                margin = evaluate_position(current)
 
         # 4. Backpropagation
         while node is not None:
