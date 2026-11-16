@@ -9,8 +9,8 @@ EMPTY = 0
 P1 = 1
 P2 = 2
 
-P1_NAME = 'Pemain 1'
-P2_NAME = 'Pemain 2'
+P1_NAME = 'Pemain A'
+P2_NAME = 'Pemain B'
 
 #MODE
 PLAYER_VS_PLAYER = 'pvp'

@@ -22,6 +22,7 @@ FOOTER_HEIGHT = 48
 
 PLAYER_COLOR = {P1: COLOR_P1, P2: COLOR_P2}
 BOX_COLOR = {P1: COLOR_BOX_P1, P2: COLOR_BOX_P2}
+BOX_LABEL = {P1: "A", P2: "B"}
 
 
 def load_font(ttf_path, fallback_stack, size, bold=True):
@@ -593,7 +594,7 @@ class GameGUI:
                     continue
                 x, y = self.dot_pos(r, c, state)
                 pygame.draw.rect(screen, BOX_COLOR[owner], (x, y, cell_size, cell_size))
-                label = box_font.render(str(owner), True, PLAYER_COLOR[owner])
+                label = box_font.render(BOX_LABEL[owner], True, PLAYER_COLOR[owner])
                 screen.blit(label, label.get_rect(center=(x + cell_size // 2, y + cell_size // 2)))
 
     def _draw_lines(self, screen, state, hover):
