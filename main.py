@@ -28,6 +28,10 @@ def current_bot_type(mode, curr_player, selected_ai):
     return None
 
 
+def is_match_in_progress(state):
+    return state.last_move is not None and not state.is_game_over()
+
+
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SCALED)
@@ -42,57 +46,90 @@ def main():
     state = GameState(rows, cols)
     ai_wait_until = 0
 
+    def start_new_match():
+        nonlocal state, ai_wait_until
+        state = GameState(rows, cols)
+        ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000) if mode == AI_VS_AI else 0
+
+    def request_game_action(action):
+        nonlocal screen_state
+        if is_match_in_progress(state, ):
+            gui.open_confirm(action)
+        elif action == "menu":
+            gui.reset_menu()
+            screen_state = "menu"
+        elif action == "restart":
+            start_new_match()
+
     running = True
     while running:
         now = pygame.time.get_ticks()
         active_bot = None
-        if screen_state == "playing" and not state.is_game_over():
+        if screen_state == "playing" and not state.is_game_over() and gui.confirm_action is None:
             active_bot = current_bot_type(mode, state.curr_player, ai_type)
         is_ai_turn = active_bot is not None
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    running = False
-                elif event.key == pygame.K_F11:
-                    pygame.display.toggle_fullscreen()
-                elif screen_state == "playing":
-                    if event.key == pygame.K_r:
-                        state = GameState(rows, cols)
-                        ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000) if mode == AI_VS_AI else 0
-                    elif event.key == pygame.K_m:
-                        gui.reset_menu()
-                        screen_state = "menu"
             elif screen_state == "menu":
-                result = gui.handle_menu_event(event)
-                if result == "exit":
-                    running = False
-                elif isinstance(result, dict):
-                    mode = result["mode"]
-                    ai_type = result["ai"]
-                    rows = result["rows"]
-                    cols = result["cols"]
-                    state = GameState(rows, cols)
-                    ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000) if mode == AI_VS_AI else 0
-                    screen_state = "playing"
-            elif screen_state == "playing" and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if state.is_game_over():
-                    state = GameState(rows, cols)
-                    ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000) if mode == AI_VS_AI else 0
-                elif not is_ai_turn:
-                    move = gui.pos_to_move(event.pos, state)
-                    if move is not None:
-                        state.make_move(move)
-                        if current_bot_type(mode, state.curr_player, ai_type) is not None:
-                            ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000)
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        if gui.menu_page == "size":
+                            gui.menu_page = "mode"
+                        elif gui.menu_page == "mode":
+                            gui.menu_page = "home"
+                        else:
+                            running = False
+                    elif event.key == pygame.K_F11:
+                        pygame.display.toggle_fullscreen()
+                else:
+                    result = gui.handle_menu_event(event)
+                    if result == "exit":
+                        running = False
+                    elif isinstance(result, dict):
+                        mode = result["mode"]
+                        ai_type = result["ai"]
+                        rows = result["rows"]
+                        cols = result["cols"]
+                        start_new_match()
+                        screen_state = "playing"
+
+            elif screen_state == "playing":
+                ui_action = gui.handle_game_ui_event(event, state)
+                if ui_action == "menu":
+                    request_game_action("menu")
+                    continue
+                elif ui_action == "restart":
+                    request_game_action("restart")
+                    continue
+                elif ui_action == "handled":
+                    continue
+
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        request_game_action("menu")
+                    elif event.key == pygame.K_F11:
+                        pygame.display.toggle_fullscreen()
+                    elif event.key == pygame.K_r:
+                        request_game_action("restart")
+                    elif event.key == pygame.K_m:
+                        request_game_action("menu")
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if state.is_game_over():
+                        start_new_match()
+                    elif not is_ai_turn:
+                        move = gui.pos_to_move(event.pos, state)
+                        if move is not None:
+                            state.make_move(move)
+                            if current_bot_type(mode, state.curr_player, ai_type) is not None:
+                                ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000)
 
         if screen_state == "menu":
             gui.draw_menu(screen)
         else:
             hover = None
-            if not state.is_game_over() and not is_ai_turn:
+            if not state.is_game_over() and not is_ai_turn and gui.confirm_action is None:
                 hover = gui.pos_to_move(pygame.mouse.get_pos(), state)
             gui.draw(screen, state, hover, mode=mode, ai_type=ai_type, ai_thinking=is_ai_turn)
 
