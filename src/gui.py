@@ -7,7 +7,7 @@ from config import (
     PLAYER_VS_PLAYER, AI_VS_PLAYER, AI_VS_AI, MINIMAX, MCTS,
     MARGIN, WINDOW_WIDTH, WINDOW_HEIGHT, CLICK_TOLERANCE,
     DEFAULT_RESOLUTION_MODE, RESOLUTION_SIZES,
-    DARK_THEME, LIGHT_THEME, NARUTO_THEME, BOX_SKINS,
+    DARK_THEME, LIGHT_THEME, NARUTO_THEME, BOX_SKINS, NARUTO_BOX_SKINS,
     UI_FONT_STACK, MONO_FONT_STACK, DISPLAY_TTF, MONO_TTF,
 )
 from src.game_logic import HORIZONTAL, VERTICAL
@@ -790,6 +790,12 @@ class GameGUI:
                 box_rect = pygame.Rect(x, y, cell_size, cell_size)
 
                 pygame.draw.rect(screen, b_colors[owner], box_rect)
+
+                if self.theme_name == "naruto":
+                    surf = self._get_skin_sprite(NARUTO_BOX_SKINS[owner], cell_size)
+                    if surf is not None:
+                        screen.blit(surf, (x, y))
+                        continue
 
                 if skin["type"] == "image":
                     surf = self._get_skin_sprite(skin[owner], cell_size)

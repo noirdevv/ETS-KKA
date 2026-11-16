@@ -142,7 +142,10 @@ def main():
                         running = False
                     elif result == "test_sfx":
                         audio.play_sfx("capture")
-                    elif result in ("theme_changed", "skin_changed", "buy_skin"):
+                    elif result == "theme_changed":
+                        audio.play_sfx("click")
+                        audio.play_theme_bgm(gui.theme_name)
+                    elif result in ("skin_changed", "buy_skin"):
                         audio.play_sfx("click")
                     elif isinstance(result, dict):
                         if result.get("resolution_changed"):

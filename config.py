@@ -205,3 +205,8 @@ BOX_SKINS = {
         P2: os.path.join("assets", "skins", "komang.jpg"),
     },
 }
+
+NARUTO_BOX_SKINS = {
+    P1: os.path.join("assets", "skins", "sharingan.png"),
+    P2: os.path.join("assets", "skins", "rasengan.png"),
+}
