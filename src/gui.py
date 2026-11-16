@@ -3,7 +3,7 @@ import pygame
 
 from config import (
     P1, P2, P1_NAME, P2_NAME,
-    PLAYER_VS_PLAYER, AI_VS_PLAYER, MINIMAX, MCTS,
+    PLAYER_VS_PLAYER, AI_VS_PLAYER, AI_VS_AI, MINIMAX, MCTS,
     MARGIN, WINDOW_WIDTH, WINDOW_HEIGHT, CLICK_TOLERANCE,
     COLOR_BG, COLOR_BAR, COLOR_DOT, COLOR_EMPTY_LINE,
     COLOR_TEXT, COLOR_MUTED, COLOR_WHITE,
@@ -27,6 +27,7 @@ def load_font(ttf_path, fallback_stack, size, bold=True):
     if os.path.exists(ttf_path):
         return pygame.font.Font(ttf_path, size)
     return pygame.font.SysFont(fallback_stack, size, bold=bold)
+
 
 def lighten(color, amount=0.5):
     return tuple(int(c + (255 - c) * amount) for c in color)
@@ -99,10 +100,11 @@ class GameGUI:
     def _draw_mode_screen(self, screen):
         self._draw_header(screen, "Pilih Lawan")
         cx = WINDOW_WIDTH // 2
-        btn_w, btn_h = 310, 64
-        start_y = 220
-        gap = 22
+        btn_w, btn_h = 310, 60
+        start_y = 175
+        gap = 18
 
+        # Pvp / Pva
         options = [
             ("pvp", "versus Player"),
             ("mcts", "versus MCTS Bot"),
@@ -113,6 +115,19 @@ class GameGUI:
             rect = pygame.Rect(cx - btn_w // 2, start_y + i * (btn_h + gap), btn_w, btn_h)
             self._draw_button(screen, rect, label, "secondary")
             self.buttons[key] = rect
+
+        # Ava
+        div_y = start_y + 3 * btn_h + 2 * gap + 24
+        pygame.draw.line(
+            screen, COLOR_TRACK,
+            (cx - btn_w // 2, div_y),
+            (cx + btn_w // 2, div_y),
+            width=2,
+        )
+
+        ava_rect = pygame.Rect(cx - btn_w // 2, div_y + 24, btn_w, btn_h)
+        self._draw_button(screen, ava_rect, "Minimax Bot vs. MCTS Bot", "secondary")
+        self.buttons["ava"] = ava_rect
 
         self._draw_back_button(screen, "back_home")
 
@@ -217,7 +232,7 @@ class GameGUI:
         elif key == "cols":
             self.selected_cols = val
 
-    # ---------------- MENU EVENTS ----------------
+    # Event handler menu
     def handle_menu_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             pos = event.pos
@@ -249,6 +264,9 @@ class GameGUI:
                         self.selected_mode = AI_VS_PLAYER
                         self.selected_ai = MINIMAX
                         self.menu_page = "size"
+                    elif key == "ava":
+                        self.selected_mode = AI_VS_AI
+                        self.menu_page = "size"
                     elif key == "start_game":
                         return {
                             "mode": self.selected_mode,
@@ -265,7 +283,7 @@ class GameGUI:
 
         return None
 
-    # Layout boardgame
+    # Layout board game
     def _layout(self, state):
         side_pad = 32
         avail_w = WINDOW_WIDTH - 2 * side_pad
@@ -302,8 +320,10 @@ class GameGUI:
         candidates = [(d, m) for d, m in candidates if d <= tolerance]
         return min(candidates)[1] if candidates else None
 
-    # Game rendering
+    # Rendering game
     def _player_labels(self, mode, ai_type):
+        if mode == AI_VS_AI:
+            return {P1: "Bot Minimax", P2: "Bot MCTS"}
         if mode == AI_VS_PLAYER:
             bot_label = "Minimax" if ai_type == MINIMAX else "MCTS"
             return {P1: "Anda", P2: f"Bot {bot_label}"}
@@ -353,7 +373,7 @@ class GameGUI:
 
     def _draw_boxes(self, screen, state):
         cell_size, _, _ = self._layout(state)
-        box_font = pygame.font.SysFont(MONO_FONT_STACK, max(16, cell_size // 3), bold=True)
+        box_font = load_font(MONO_TTF, MONO_FONT_STACK, max(16, cell_size // 3))
         for r in range(state.row):
             for c in range(state.col):
                 owner = int(state.box_owner[r, c])

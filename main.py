@@ -2,8 +2,8 @@ import sys
 import pygame
 
 from config import (
-    TITLE, FPS, WINDOW_WIDTH, WINDOW_HEIGHT, P2,
-    PLAYER_VS_PLAYER, AI_VS_PLAYER, MINIMAX,
+    TITLE, FPS, WINDOW_WIDTH, WINDOW_HEIGHT, P1, P2,
+    PLAYER_VS_PLAYER, AI_VS_PLAYER, AI_VS_AI, MINIMAX, MCTS,
     MINIMAX_DEPTH, MCTS_ITERATION, AI_MOVE_DELAY,
 )
 from src.game_logic import GameState
@@ -18,6 +18,14 @@ def compute_ai_move(state, ai_type):
         depth = MINIMAX_DEPTH if total_boxes <= 25 else min(MINIMAX_DEPTH, 3)
         return get_minimax_move(state, depth=depth, time_limit=1.5)
     return get_mcts_move(state, iterations=MCTS_ITERATION)
+
+
+def current_bot_type(mode, curr_player, selected_ai):
+    if mode == AI_VS_AI:
+        return MINIMAX if curr_player == P1 else MCTS
+    if mode == AI_VS_PLAYER and curr_player == P2:
+        return selected_ai
+    return None
 
 
 def main():
@@ -37,12 +45,10 @@ def main():
     running = True
     while running:
         now = pygame.time.get_ticks()
-        is_ai_turn = (
-            screen_state == "playing"
-            and mode == AI_VS_PLAYER
-            and not state.is_game_over()
-            and state.curr_player == P2
-        )
+        active_bot = None
+        if screen_state == "playing" and not state.is_game_over():
+            active_bot = current_bot_type(mode, state.curr_player, ai_type)
+        is_ai_turn = active_bot is not None
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -55,7 +61,7 @@ def main():
                 elif screen_state == "playing":
                     if event.key == pygame.K_r:
                         state = GameState(rows, cols)
-                        ai_wait_until = 0
+                        ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000) if mode == AI_VS_AI else 0
                     elif event.key == pygame.K_m:
                         gui.reset_menu()
                         screen_state = "menu"
@@ -69,17 +75,17 @@ def main():
                     rows = result["rows"]
                     cols = result["cols"]
                     state = GameState(rows, cols)
-                    ai_wait_until = 0
+                    ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000) if mode == AI_VS_AI else 0
                     screen_state = "playing"
             elif screen_state == "playing" and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if state.is_game_over():
                     state = GameState(rows, cols)
-                    ai_wait_until = 0
+                    ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000) if mode == AI_VS_AI else 0
                 elif not is_ai_turn:
                     move = gui.pos_to_move(event.pos, state)
                     if move is not None:
                         state.make_move(move)
-                        if mode == AI_VS_PLAYER and state.curr_player == P2:
+                        if current_bot_type(mode, state.curr_player, ai_type) is not None:
                             ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000)
 
         if screen_state == "menu":
@@ -93,10 +99,10 @@ def main():
         pygame.display.flip()
 
         if is_ai_turn and now >= ai_wait_until:
-            move = compute_ai_move(state, ai_type)
+            move = compute_ai_move(state, active_bot)
             if move is not None:
                 state.make_move(move)
-                if state.curr_player == P2 and not state.is_game_over():
+                if not state.is_game_over() and current_bot_type(mode, state.curr_player, ai_type) is not None:
                     ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000)
 
         clock.tick(FPS)
