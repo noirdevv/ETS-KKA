@@ -57,7 +57,10 @@ def evaluate_terminal(state, root_player, diff):
     return diff - WIN_SCORE
 
 
-def alphabeta(state, depth, alpha, beta, root_player, diff, done, deadline):
+def alphabeta(state, depth, alpha, beta, root_player, diff, done, deadline, stats=None):
+    if stats is not None:
+        stats["nodes"] += 1
+
     if deadline is not None and time.perf_counter() > deadline:
         raise SearchTimeout()
 
@@ -80,7 +83,7 @@ def alphabeta(state, depth, alpha, beta, root_player, diff, done, deadline):
         new_diff = diff + (gained if maximizing else -gained)
         next_depth = depth if gained > 0 else depth - 1
         value = alphabeta(next_state, next_depth, alpha, beta, root_player,
-                          new_diff, done_after, deadline)
+                          new_diff, done_after, deadline, stats)
         if maximizing:
             best = max(best, value)
             alpha = max(alpha, best)
@@ -88,11 +91,16 @@ def alphabeta(state, depth, alpha, beta, root_player, diff, done, deadline):
             best = min(best, value)
             beta = min(beta, best)
         if beta <= alpha:
+            if stats is not None:
+                stats["prunes"] += 1
             break
     return best
 
 
-def get_minimax_move(state, depth=MINIMAX_DEPTH, time_limit=MINIMAX_TIME_LIMIT):
+def get_minimax_move(state, depth=MINIMAX_DEPTH, time_limit=MINIMAX_TIME_LIMIT, stats=None):
+    if stats is not None:
+        stats.update({"nodes": 0, "prunes": 0, "depth_reached": 0})
+
     if state.is_game_over():
         return None
 
@@ -115,11 +123,13 @@ def get_minimax_move(state, depth=MINIMAX_DEPTH, time_limit=MINIMAX_TIME_LIMIT):
             for move, next_state, done_after, gained in children:
                 next_depth = d if gained > 0 else d - 1
                 value = alphabeta(next_state, next_depth, alpha, math.inf,
-                                  root_player, gained, done_after, deadline)
+                                  root_player, gained, done_after, deadline, stats)
                 if value > level_value:
                     level_value, level_move = value, move
                 alpha = max(alpha, level_value)
             best_move = level_move
+            if stats is not None:
+                stats["depth_reached"] = d
         except SearchTimeout:
             break
 

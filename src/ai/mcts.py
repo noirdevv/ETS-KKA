@@ -77,11 +77,20 @@ def heuristic_rollout(state):
     return current.get_winner()
 
 
-def get_mcts_move(state, iterations=MCTS_ITERATION, c_param=MCTS_EXPLORATION, use_heuristic=True):
+def get_mcts_move(
+    state,
+    iterations=MCTS_ITERATION,
+    c_param=MCTS_EXPLORATION,
+    use_heuristic=True,
+    stats=None,
+):
     """Public entry point for the MCTS AI agent.
 
     Returns the best move determined after running N iterations of MCTS.
     """
+    if stats is not None:
+        stats.update({"iterations": 0, "max_depth": 0, "fast_path": False})
+
     if state.is_game_over():
         return None
 
@@ -94,20 +103,30 @@ def get_mcts_move(state, iterations=MCTS_ITERATION, c_param=MCTS_EXPLORATION, us
     # Fast-path optimization: if an immediate capturing move exists, take it
     capturing_moves = state.get_capturing_moves()
     if capturing_moves:
+        if stats is not None:
+            stats["fast_path"] = True
         return random.choice(capturing_moves)
 
     root = MCTSNode(state=state.copy())
 
     for _ in range(iterations):
         node = root
+        depth = 0
 
         # 1. Selection
         while node.is_fully_expanded() and not node.is_terminal():
             node = node.best_child(c_param=c_param)
+            depth += 1
 
         # 2. Expansion
         if not node.is_terminal():
             node = node.expand()
+            depth += 1
+
+        if stats is not None:
+            stats["iterations"] += 1
+            if depth > stats["max_depth"]:
+                stats["max_depth"] = depth
 
         # 3. Simulation
         if use_heuristic:
