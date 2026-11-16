@@ -5,9 +5,7 @@
 # 4. Kalau passed semua, logic udah aman
 
 import importlib
-
 import pytest
-
 import config
 
 # Semua nama yang dipakai modul lain. Kalau ada yang hilang/salah ketik, tes ini yang menunjukkannya.
@@ -18,6 +16,8 @@ REQUIRED_NAMES = [
     "TITLE", "FPS", "CELL_SIZE", "MARGIN", "PANEL_HEIGHT",
     "DOT_RADIUS", "LINE_WIDTH", "CLICK_TOLERANCE",
     "WINDOW_WIDTH", "WINDOW_HEIGHT",
+    "PHONE_WINDOW_WIDTH", "PHONE_WINDOW_HEIGHT",
+    "LAPTOP_WINDOW_WIDTH", "LAPTOP_WINDOW_HEIGHT",
     "COLOR_BG", "COLOR_DOT", "COLOR_EMPTY_LINE", "COLOR_HOVER_LINE", "COLOR_TEXT",
     "COLOR_P1", "COLOR_P2", "COLOR_BOX_P1", "COLOR_BOX_P2",
 ]
@@ -98,9 +98,14 @@ def test_display_sizes_are_positive():
 
 
 def test_window_size_matches_board():
-    assert config.WINDOW_WIDTH == config.COL * config.CELL_SIZE + 2 * config.MARGIN
-    assert config.WINDOW_HEIGHT == (
+    assert config.PHONE_WINDOW_WIDTH == config.COL * config.CELL_SIZE + 2 * config.MARGIN
+    assert config.PHONE_WINDOW_HEIGHT == (
         config.ROW * config.CELL_SIZE + 2 * config.MARGIN + config.PANEL_HEIGHT
+    )
+    assert config.DEFAULT_RESOLUTION_MODE == "laptop"
+    assert (config.WINDOW_WIDTH, config.WINDOW_HEIGHT) == (
+        config.LAPTOP_WINDOW_WIDTH,
+        config.LAPTOP_WINDOW_HEIGHT,
     )
 
 
@@ -130,3 +135,11 @@ def test_player_colors_are_distinguishable():
 def test_box_colors_visible_on_background():
     assert config.COLOR_BOX_P1 != config.COLOR_BG
     assert config.COLOR_BOX_P2 != config.COLOR_BG
+
+
+def test_naruto_theme_matches_theme_schema():
+    assert set(config.NARUTO_THEME) == set(config.DARK_THEME)
+    for name, color in config.NARUTO_THEME.items():
+        channels = 4 if name == "TEXT_INV" else 3
+        assert isinstance(color, tuple) and len(color) == channels, name
+        assert all(isinstance(value, int) and 0 <= value <= 255 for value in color), name
