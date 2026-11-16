@@ -1,3 +1,4 @@
+import os
 import pygame
 
 from config import (
@@ -9,6 +10,7 @@ from config import (
     COLOR_P1, COLOR_P2, COLOR_BOX_P1, COLOR_BOX_P2,
     COLOR_BTN, COLOR_BTN_PRIMARY, COLOR_BTN_DISABLED,
     COLOR_TEXT_DISABLED, COLOR_TRACK, COLOR_FILL,
+    UI_FONT_STACK, MONO_FONT_STACK, DISPLAY_TTF, MONO_TTF
 )
 from src.game_logic import HORIZONTAL, VERTICAL
 
@@ -20,9 +22,11 @@ FOOTER_HEIGHT = 44
 PLAYER_COLOR = {P1: COLOR_P1, P2: COLOR_P2}
 BOX_COLOR = {P1: COLOR_BOX_P1, P2: COLOR_BOX_P2}
 
-UI_FONT_STACK = "segoeui,sfprodisplay,ubuntu,helvetica,arial"
-MONO_FONT_STACK = "consolas,sfmono,ubuntumono,couriernew"
 
+def load_font(ttf_path, fallback_stack, size, bold=True):
+    if os.path.exists(ttf_path):
+        return pygame.font.Font(ttf_path, size)
+    return pygame.font.SysFont(fallback_stack, size, bold=bold)
 
 def lighten(color, amount=0.5):
     return tuple(int(c + (255 - c) * amount) for c in color)
@@ -30,11 +34,11 @@ def lighten(color, amount=0.5):
 
 class GameGUI:
     def __init__(self):
-        self.font_hero = pygame.font.SysFont(UI_FONT_STACK, 42, bold=True)
-        self.font_title = pygame.font.SysFont(UI_FONT_STACK, 28, bold=True)
-        self.font_big = pygame.font.SysFont(MONO_FONT_STACK, 28, bold=True)
-        self.font = pygame.font.SysFont(UI_FONT_STACK, 19, bold=True)
-        self.font_small = pygame.font.SysFont(UI_FONT_STACK, 14)
+        self.font_hero = load_font(DISPLAY_TTF, UI_FONT_STACK, 44)
+        self.font_title = load_font(DISPLAY_TTF, UI_FONT_STACK, 28)
+        self.font_big = load_font(MONO_TTF, MONO_FONT_STACK, 28)
+        self.font = load_font(DISPLAY_TTF, UI_FONT_STACK, 20)
+        self.font_small = load_font(DISPLAY_TTF, UI_FONT_STACK, 15, bold=False)
 
         # Navigasi tampilan layar game
         self.menu_page = "home"  # "home" -> "mode" -> "size"

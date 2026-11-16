@@ -1,3 +1,5 @@
+import os
+
 #BOARD
 ROW = 4
 COL = 4
@@ -62,3 +64,11 @@ COLOR_BTN_DISABLED = (30, 33, 46)
 COLOR_TEXT_DISABLED = (82, 90, 115)
 COLOR_TRACK = (51, 58, 82)
 COLOR_FILL = (56, 189, 248)
+
+#FONT
+UI_FONT_STACK = "trebuchetms,verdana,comicsansms"
+MONO_FONT_STACK = "consolas,sfmono,ubuntumono,couriernew"
+
+FONT_DIR = os.path.join("assets")
+DISPLAY_TTF = os.path.join(FONT_DIR, "Fredoka-Bold.ttf")
+MONO_TTF = os.path.join(FONT_DIR, "JetBrainsMono-Bold.ttf")
