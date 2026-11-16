@@ -145,7 +145,11 @@ def main():
                     elif result in ("theme_changed", "skin_changed", "buy_skin"):
                         audio.play_sfx("click")
                     elif isinstance(result, dict):
-                        if result.get("audio_changed"):
+                        if result.get("resolution_changed"):
+                            audio.play_sfx("click")
+                            screen = pygame.display.set_mode(result["size"], pygame.SCALED)
+                            gui.set_window_size(*result["size"])
+                        elif result.get("audio_changed"):
                             audio.set_bgm_volume(result["bgm"])
                             audio.set_sfx_volume(result["sfx"])
                         else:

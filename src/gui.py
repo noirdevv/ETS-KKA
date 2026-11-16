@@ -6,7 +6,8 @@ from config import (
     P1, P2, P1_NAME, P2_NAME,
     PLAYER_VS_PLAYER, AI_VS_PLAYER, AI_VS_AI, MINIMAX, MCTS,
     MARGIN, WINDOW_WIDTH, WINDOW_HEIGHT, CLICK_TOLERANCE,
-    DARK_THEME, LIGHT_THEME, BOX_SKINS,
+    DEFAULT_RESOLUTION_MODE, RESOLUTION_SIZES,
+    DARK_THEME, LIGHT_THEME, NARUTO_THEME, BOX_SKINS,
     UI_FONT_STACK, MONO_FONT_STACK, DISPLAY_TTF, MONO_TTF,
 )
 from src.game_logic import HORIZONTAL, VERTICAL
@@ -18,6 +19,17 @@ HUD_HEIGHT = 105
 FOOTER_HEIGHT = 48
 
 BOX_LABEL = {P1: "A", P2: "B"}
+THEMES = {
+    "dark": DARK_THEME,
+    "light": LIGHT_THEME,
+    "naruto": NARUTO_THEME,
+}
+THEME_NAMES = ("dark", "light", "naruto")
+THEME_LABELS = {
+    "dark": "Dark Mode",
+    "light": "Light Mode",
+    "naruto": "Naruto",
+}
 
 
 def load_font(ttf_path, fallback_stack, size, bold=True):
@@ -35,16 +47,24 @@ def darken(color, amount=0.2):
 
 
 class GameGUI:
-    def __init__(self, bgm_volume=35, sfx_volume=65, store=None):
+    def __init__(
+        self,
+        bgm_volume=35,
+        sfx_volume=65,
+        store=None,
+        window_size=(WINDOW_WIDTH, WINDOW_HEIGHT),
+    ):
         self.font_hero = load_font(DISPLAY_TTF, UI_FONT_STACK, 44)
         self.font_title = load_font(DISPLAY_TTF, UI_FONT_STACK, 28)
         self.font_big = load_font(MONO_TTF, MONO_FONT_STACK, 28)
         self.font = load_font(DISPLAY_TTF, UI_FONT_STACK, 20)
         self.font_small = load_font(DISPLAY_TTF, UI_FONT_STACK, 15, bold=False)
 
-        # Tema tampilan (dark / light)
+        # Tema tampilan
         self.theme_name = "dark"
-        self.theme = DARK_THEME
+        self.theme = THEMES[self.theme_name]
+        self.resolution_mode = DEFAULT_RESOLUTION_MODE
+        self.window_width, self.window_height = window_size
 
         # Navigasi tampilan layar game
         self.menu_page = "home"  # "home" | "mode" | "size" | "settings"
@@ -71,6 +91,11 @@ class GameGUI:
         self.selected_skin = "classic"
         self._skin_cache = {}  # Cache gambar PNG yang sudah di-resize per cell_size
         self._bg_cache = {}
+
+    def set_window_size(self, width, height):
+        self.window_width = width
+        self.window_height = height
+        self._bg_cache.clear()
 
     @property
     def _player_colors(self):
@@ -134,7 +159,7 @@ class GameGUI:
     def _draw_background(self, screen):
         """Render background dengan pola grid Dots & Boxes halus yang di-cache."""
         if self.theme_name not in self._bg_cache:
-            surf = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
+            surf = pygame.Surface((self.window_width, self.window_height))
             bg = self.theme["BG"]
             surf.fill(bg)
 
@@ -149,20 +174,20 @@ class GameGUI:
                 accent_col = darken(bg, 0.065)
 
             step = 44  # Jarak antar titik pola
-            for x in range(22, WINDOW_WIDTH, step):
-                pygame.draw.line(surf, line_col, (x, 0), (x, WINDOW_HEIGHT), 1)
-            for y in range(22, WINDOW_HEIGHT, step):
-                pygame.draw.line(surf, line_col, (0, y), (WINDOW_WIDTH, y), 1)
+            for x in range(22, self.window_width, step):
+                pygame.draw.line(surf, line_col, (x, 0), (x, self.window_height), 1)
+            for y in range(22, self.window_height, step):
+                pygame.draw.line(surf, line_col, (0, y), (self.window_width, y), 1)
 
             # Isi beberapa kotak kecil secara jarang agar terasa seperti papan game
-            for gx, x in enumerate(range(22, WINDOW_WIDTH - step, step)):
-                for gy, y in enumerate(range(22, WINDOW_HEIGHT - step, step)):
+            for gx, x in enumerate(range(22, self.window_width - step, step)):
+                for gy, y in enumerate(range(22, self.window_height - step, step)):
                     if (gx * 7 + gy * 13) % 11 == 0:
                         pygame.draw.rect(surf, accent_col, (x + 4, y + 4, step - 8, step - 8), border_radius=6)
 
             # Titik-titik kecil di setiap persimpangan grid
-            for x in range(22, WINDOW_WIDTH, step):
-                for y in range(22, WINDOW_HEIGHT, step):
+            for x in range(22, self.window_width, step):
+                for y in range(22, self.window_height, step):
                     pygame.draw.circle(surf, dot_col, (x, y), 2)
 
             self._bg_cache[self.theme_name] = surf
@@ -170,9 +195,9 @@ class GameGUI:
         screen.blit(self._bg_cache[self.theme_name], (0, 0))
 
     def _draw_home_screen(self, screen):
-        pygame.draw.rect(screen, self.theme["BAR"], (0, 0, WINDOW_WIDTH, 18))
+        pygame.draw.rect(screen, self.theme["BAR"], (0, 0, self.window_width, 18))
 
-        cx = WINDOW_WIDTH // 2
+        cx = self.window_width // 2
         t1 = self.font_hero.render("GARIS-GARIS", True, self.theme["P1"])
         t2 = self.font_hero.render("SQUARE", True, self.theme["TEXT"])
         sub = self.font_small.render("Dots & Boxes Adversarial AI", True, self.theme["MUTED"])
@@ -199,7 +224,7 @@ class GameGUI:
 
     def _draw_mode_screen(self, screen):
         self._draw_header(screen, "Pilih Lawan")
-        cx = WINDOW_WIDTH // 2
+        cx = self.window_width // 2
         btn_w, btn_h = 310, 60
         start_y = 175
         gap = 18
@@ -233,7 +258,7 @@ class GameGUI:
 
     def _draw_size_screen(self, screen):
         self._draw_header(screen, "Ukuran Grid")
-        cx = WINDOW_WIDTH // 2
+        cx = self.window_width // 2
 
         badge = pygame.Rect(cx - 110, 155, 220, 52)
         pygame.draw.rect(screen, self.theme["BTN"], badge, border_radius=14)
@@ -268,7 +293,7 @@ class GameGUI:
 
     def _draw_settings_screen(self, screen):
         self._draw_header(screen, "Settings")
-        cx = WINDOW_WIDTH // 2
+        cx = self.window_width // 2
 
         self._draw_range_slider(
             screen,
@@ -277,7 +302,7 @@ class GameGUI:
             value=self.bgm_volume,
             min_val=0,
             max_val=100,
-            y=175,
+            y=150,
             tick_step=25,
         )
         self._draw_range_slider(
@@ -287,30 +312,38 @@ class GameGUI:
             value=self.sfx_volume,
             min_val=0,
             max_val=100,
-            y=275,
+            y=225,
             tick_step=25,
         )
 
-        # Toggle Dark / Light Mode
-        theme_label = "Tema: Dark Mode" if self.theme_name == "dark" else "Tema: Light Mode"
-        theme_rect = pygame.Rect(cx - 145, 348, 290, 46)
+        theme_label = f"Tema: {THEME_LABELS[self.theme_name]}"
+        theme_rect = pygame.Rect(cx - 145, 275, 290, 46)
         self.buttons["toggle_theme"] = theme_rect
         self._draw_button(screen, theme_rect, theme_label, "secondary", key="toggle_theme")
 
+        for key, label, mode, x in (
+            ("resolution_laptop", "Laptop", "laptop", cx - 145),
+            ("resolution_phone", "HP", "phone", cx + 5),
+        ):
+            rect = pygame.Rect(x, 355, 140, 42)
+            self.buttons[key] = rect
+            style = "primary" if self.resolution_mode == mode else "secondary"
+            self._draw_button(screen, rect, label, style, key=key)
+
         # Skins
-        pygame.draw.line(screen, self.theme["TRACK"], (cx - 145, 414), (cx + 145, 414), width=2)
+        pygame.draw.line(screen, self.theme["TRACK"], (cx - 145, 417), (cx + 145, 417), width=2)
         skin_hdr = self.font.render("Skin", True, self.theme["TEXT"])
-        screen.blit(skin_hdr, skin_hdr.get_rect(center=(cx, 434)))
+        screen.blit(skin_hdr, skin_hdr.get_rect(center=(cx, 436)))
 
         unlocked = self.store is None or self.store.is_unlocked(self.selected_skin)
         skin_name = BOX_SKINS[self.selected_skin]["label"]
         skin_label = f"{skin_name}" if unlocked else f"{skin_name} [Terkunci]"
-        skin_rect = pygame.Rect(cx - 145, 456, 290, 46)
+        skin_rect = pygame.Rect(cx - 145, 459, 290, 46)
         self.buttons["cycle_skin"] = skin_rect
         self._draw_button(screen, skin_rect, skin_label, "secondary", key="cycle_skin")
 
         # Microtransaction
-        buy_rect = pygame.Rect(cx - 145, 514, 290, 46)
+        buy_rect = pygame.Rect(cx - 145, 512, 290, 46)
         if not unlocked:
             price = SKIN_PRICES.get(self.selected_skin, 0)
             self.buttons["buy_skin"] = buy_rect
@@ -321,17 +354,17 @@ class GameGUI:
         # Status transaksi Midtrans (jika sedang/baru saja membeli)
         if self.store and self.store.status_message:
             status_surf = self.font_small.render(self.store.status_message, True, self.theme["FILL"])
-            screen.blit(status_surf, status_surf.get_rect(center=(cx, 582)))
+            screen.blit(status_surf, status_surf.get_rect(center=(cx, 578)))
 
         self._draw_back_button(screen, "back_home")
 
     def _draw_header(self, screen, title_text):
-        pygame.draw.rect(screen, self.theme["BAR"], (0, 0, WINDOW_WIDTH, HUD_HEIGHT))
+        pygame.draw.rect(screen, self.theme["BAR"], (0, 0, self.window_width, HUD_HEIGHT))
         lbl = self.font_title.render(title_text, True, self.theme["WHITE"])
-        screen.blit(lbl, lbl.get_rect(center=(WINDOW_WIDTH // 2, HUD_HEIGHT // 2)))
+        screen.blit(lbl, lbl.get_rect(center=(self.window_width // 2, HUD_HEIGHT // 2)))
 
     def _draw_back_button(self, screen, key):
-        rect = pygame.Rect(WINDOW_WIDTH // 2 - 90, WINDOW_HEIGHT - 95, 180, 44)
+        rect = pygame.Rect(self.window_width // 2 - 90, self.window_height - 95, 180, 44)
         self.buttons[key] = rect
         hovered = rect.collidepoint(pygame.mouse.get_pos())
         color = self.theme["TEXT"] if hovered else self.theme["MUTED"]
@@ -387,7 +420,7 @@ class GameGUI:
     def _draw_range_slider(self, screen, key, label, value, min_val, max_val, y, tick_step=1):
         track_w = 300
         track_h = 8
-        track_x = (WINDOW_WIDTH - track_w) // 2
+        track_x = (self.window_width - track_w) // 2
         hit_rect = pygame.Rect(track_x - 18, y - 20, track_w + 36, 48)
         self.sliders[key] = (hit_rect, track_x, track_w, min_val, max_val)
 
@@ -469,13 +502,19 @@ class GameGUI:
                 elif released_key == "settings":
                     self.menu_page = "settings"
                 elif released_key == "toggle_theme":
-                    if self.theme_name == "dark":
-                        self.theme_name = "light"
-                        self.theme = LIGHT_THEME
-                    else:
-                        self.theme_name = "dark"
-                        self.theme = DARK_THEME
+                    next_theme = (THEME_NAMES.index(self.theme_name) + 1) % len(THEME_NAMES)
+                    self.theme_name = THEME_NAMES[next_theme]
+                    self.theme = THEMES[self.theme_name]
                     return "theme_changed"
+                elif released_key in ("resolution_laptop", "resolution_phone"):
+                    mode = "laptop" if released_key == "resolution_laptop" else "phone"
+                    if mode == self.resolution_mode:
+                        return None
+                    self.resolution_mode = mode
+                    return {
+                        "resolution_changed": True,
+                        "size": RESOLUTION_SIZES[mode],
+                    }
                 elif released_key == "test_sfx":
                     return "test_sfx"
                 elif released_key == "exit":
@@ -577,11 +616,11 @@ class GameGUI:
     # Layout board game
     def _layout(self, state):
         side_pad = 32
-        avail_w = WINDOW_WIDTH - 2 * side_pad
-        avail_h = WINDOW_HEIGHT - HUD_HEIGHT - FOOTER_HEIGHT - 2 * MARGIN
+        avail_w = self.window_width - 2 * side_pad
+        avail_h = self.window_height - HUD_HEIGHT - FOOTER_HEIGHT - 2 * MARGIN
         cell_size = min(avail_w // state.col, avail_h // state.row)
-        ox = (WINDOW_WIDTH - cell_size * state.col) // 2
-        oy = HUD_HEIGHT + (WINDOW_HEIGHT - HUD_HEIGHT - FOOTER_HEIGHT - cell_size * state.row) // 2
+        ox = (self.window_width - cell_size * state.col) // 2
+        oy = HUD_HEIGHT + (self.window_height - HUD_HEIGHT - FOOTER_HEIGHT - cell_size * state.row) // 2
         return cell_size, ox, oy
 
     def dot_pos(self, row, col, state):
@@ -642,12 +681,12 @@ class GameGUI:
         self._update_cursor(pygame.mouse.get_pos())
 
     def _draw_top_bar(self, screen, state, labels):
-        pygame.draw.rect(screen, self.theme["BAR"], (0, 0, WINDOW_WIDTH, HUD_HEIGHT))
+        pygame.draw.rect(screen, self.theme["BAR"], (0, 0, self.window_width, HUD_HEIGHT))
         over = state.is_game_over()
-        card_w = (WINDOW_WIDTH // 2) - 24
+        card_w = (self.window_width // 2) - 24
         p_colors = self._player_colors
         for i, p in enumerate((P1, P2)):
-            cx = WINDOW_WIDTH * (2 * i + 1) // 4
+            cx = self.window_width * (2 * i + 1) // 4
             active = (p == state.curr_player) and not over
             if active:
                 pygame.draw.rect(
@@ -662,8 +701,8 @@ class GameGUI:
             screen.blit(score, score.get_rect(center=(cx, 70)))
 
     def _draw_footer(self, screen, state, labels, ai_thinking):
-        y = WINDOW_HEIGHT - FOOTER_HEIGHT
-        pygame.draw.rect(screen, self.theme["BAR"], (0, y, WINDOW_WIDTH, FOOTER_HEIGHT))
+        y = self.window_height - FOOTER_HEIGHT
+        pygame.draw.rect(screen, self.theme["BAR"], (0, y, self.window_width, FOOTER_HEIGHT))
 
         if state.is_game_over():
             status = "Permainan Selesai"
@@ -680,7 +719,7 @@ class GameGUI:
         btn_h = 30
         btn_y = y + (FOOTER_HEIGHT - btn_h) // 2
         actions = [("btn_restart", "Ulang", 68), ("btn_menu", "Menu", 68)]
-        right_x = WINDOW_WIDTH - 12
+        right_x = self.window_width - 12
 
         for key, text, btn_w in actions:
             right_x -= btn_w
@@ -696,14 +735,14 @@ class GameGUI:
             right_x -= 8
 
     def _draw_confirm_modal(self, screen):
-        overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
+        overlay = pygame.Surface((self.window_width, self.window_height), pygame.SRCALPHA)
         overlay.fill(self.theme["TEXT_INV"])
         screen.blit(overlay, (0, 0))
 
         card_w, card_h = 340, 210
         card_rect = pygame.Rect(
-            (WINDOW_WIDTH - card_w) // 2,
-            (WINDOW_HEIGHT - card_h) // 2,
+            (self.window_width - card_w) // 2,
+            (self.window_height - card_h) // 2,
             card_w,
             card_h,
         )
@@ -717,7 +756,7 @@ class GameGUI:
             title_txt = "Ulang Permainan?"
             desc_txt = "Papan akan direset dari awal."
 
-        cx = WINDOW_WIDTH // 2
+        cx = self.window_width // 2
         title_surf = self.font_title.render(title_txt, True, self.theme["TEXT"])
         desc_surf = self.font_small.render(desc_txt, True, self.theme["MUTED"])
         screen.blit(title_surf, title_surf.get_rect(center=(cx, card_rect.top + 48)))
@@ -808,7 +847,7 @@ class GameGUI:
                 pygame.draw.circle(screen, self.theme["DOT"], self.dot_pos(r, c, state), dot_r)
 
     def _draw_game_over(self, screen, state, labels):
-        overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
+        overlay = pygame.Surface((self.window_width, self.window_height), pygame.SRCALPHA)
         overlay.fill((*self.theme["BG"], 230))
         screen.blit(overlay, (0, 0))
 
@@ -820,7 +859,7 @@ class GameGUI:
             title, color = "Seri!", self.theme["TEXT"]
         score_txt = f"{state.score[P1]}  -  {state.score[P2]}"
 
-        cx, cy = WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2
+        cx, cy = self.window_width // 2, self.window_height // 2
         for surf, dy in (
             (self.font_title.render(title, True, color), -35),
             (self.font.render(score_txt, True, self.theme["TEXT"]), 10),
