@@ -154,6 +154,8 @@ def main():
                             screen_state = "playing"
                     elif gui.menu_page != prev_page:
                         audio.play_sfx("click")
+                    elif result in ("theme_changed", "skin_changed"):
+                        audio.play_sfx("click")
 
             elif screen_state == "playing":
                 was_confirming = gui.confirm_action is not None

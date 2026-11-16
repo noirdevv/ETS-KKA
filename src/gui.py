@@ -6,7 +6,7 @@ from config import (
     P1, P2, P1_NAME, P2_NAME,
     PLAYER_VS_PLAYER, AI_VS_PLAYER, AI_VS_AI, MINIMAX, MCTS,
     MARGIN, WINDOW_WIDTH, WINDOW_HEIGHT, CLICK_TOLERANCE,
-    DARK_THEME, LIGHT_THEME,
+    DARK_THEME, LIGHT_THEME, BOX_SKINS,
     UI_FONT_STACK, MONO_FONT_STACK, DISPLAY_TTF, MONO_TTF,
 )
 from src.game_logic import HORIZONTAL, VERTICAL
@@ -64,6 +64,10 @@ class GameGUI:
         self.dragging_slider = None
         self.pressed_key = None
         self.confirm_action = None  # "menu" | "restart" | None
+
+        # Skins
+        self.selected_skin = "classic"
+        self._skin_cache = {}  # Cache gambar PNG yang sudah di-resize per cell_size
 
     @property
     def _player_colors(self):
@@ -248,12 +252,18 @@ class GameGUI:
 
         # Toggle Dark / Light Mode
         theme_label = "Tema: Dark Mode" if self.theme_name == "dark" else "Tema: Light Mode"
-        theme_rect = pygame.Rect(cx - 135, 435, 270, 50)
+        theme_rect = pygame.Rect(cx - 145, 390, 290, 48)
         self.buttons["toggle_theme"] = theme_rect
         self._draw_button(screen, theme_rect, theme_label, "secondary", key="toggle_theme")
 
-        # Tombol tes bunyi SFX
-        test_rect = pygame.Rect(cx - 135, 505, 270, 50)
+        # Skins
+        skin_label = f"Skin: {BOX_SKINS[self.selected_skin]['label']}"
+        skin_rect = pygame.Rect(cx - 145, 452, 290, 48)
+        self.buttons["cycle_skin"] = skin_rect
+        self._draw_button(screen, skin_rect, skin_label, "secondary", key="cycle_skin")
+
+        # Test SFX
+        test_rect = pygame.Rect(cx - 145, 514, 290, 48)
         self.buttons["test_sfx"] = test_rect
         self._draw_button(screen, test_rect, "Tes Sound Effect", "secondary", key="test_sfx")
 
@@ -439,6 +449,11 @@ class GameGUI:
                         "rows": self.selected_rows,
                         "cols": self.selected_cols,
                     }
+                elif released_key == "cycle_skin":
+                    keys = list(BOX_SKINS.keys())
+                    next_idx = (keys.index(self.selected_skin) + 1) % len(keys)
+                    self.selected_skin = keys[next_idx]
+                    return "skin_changed"
 
         return None
 
@@ -658,18 +673,34 @@ class GameGUI:
 
     def _draw_boxes(self, screen, state):
         cell_size, _, _ = self._layout(state)
+        skin = BOX_SKINS[self.selected_skin]
         box_font = load_font(MONO_TTF, MONO_FONT_STACK, max(16, cell_size // 3))
         p_colors = self._player_colors
         b_colors = self._box_colors
+
         for r in range(state.row):
             for c in range(state.col):
                 owner = int(state.box_owner[r, c])
                 if owner == 0:
                     continue
+
                 x, y = self.dot_pos(r, c, state)
-                pygame.draw.rect(screen, b_colors[owner], (x, y, cell_size, cell_size))
-                label = box_font.render(BOX_LABEL[owner], True, p_colors[owner])
-                screen.blit(label, label.get_rect(center=(x + cell_size // 2, y + cell_size // 2)))
+                box_rect = pygame.Rect(x, y, cell_size, cell_size)
+
+                pygame.draw.rect(screen, b_colors[owner], box_rect)
+
+                if skin["type"] == "image":
+                    surf = self._get_skin_sprite(skin[owner], cell_size)
+                    if surf is not None:
+                        screen.blit(surf, (x, y))
+                        continue
+                if skin["type"] == "pattern":
+                    self._draw_box_pattern(screen, box_rect, skin[owner], p_colors[owner])
+                elif skin["type"] == "icon":
+                    self._draw_box_icon(screen, box_rect, skin[owner], p_colors[owner])
+                else:
+                    label = box_font.render(skin[owner], True, p_colors[owner])
+                    screen.blit(label, label.get_rect(center=box_rect.center))
 
     def _draw_lines(self, screen, state, hover):
         cell_size, _, _ = self._layout(state)
@@ -733,3 +764,51 @@ class GameGUI:
             (self.font_small.render("Klik / R untuk ulang  |  M untuk menu", True, self.theme["MUTED"]), 50),
         ):
             screen.blit(surf, surf.get_rect(center=(cx, cy + dy)))
+
+    def _get_skin_sprite(self, path, cell_size):
+        """Muat & scale sprite PNG sekali per ukuran sel agar FPS tetap 60."""
+        cache_key = (path, cell_size)
+        if cache_key not in self._skin_cache:
+            if not os.path.exists(path):
+                self._skin_cache[cache_key] = None
+            else:
+                raw = pygame.image.load(path).convert_alpha()
+                self._skin_cache[cache_key] = pygame.transform.smoothscale(raw, (cell_size, cell_size))
+        return self._skin_cache[cache_key]
+
+    def _draw_box_pattern(self, screen, rect, pattern, color):
+        """Gambar motif geometris di dalam kotak."""
+        pad = max(8, rect.width // 6)
+        if pattern == "diagonal":
+            pygame.draw.line(screen, color, (rect.left + pad, rect.top + pad), (rect.right - pad, rect.bottom - pad), 4)
+            pygame.draw.line(screen, color, (rect.right - pad, rect.top + pad), (rect.left + pad, rect.bottom - pad), 4)
+        elif pattern == "dots":
+            r = max(4, rect.width // 14)
+            for dx in (-pad, pad):
+                for dy in (-pad, pad):
+                    pygame.draw.circle(screen, color, (rect.centerx + dx, rect.centery + dy), r)
+
+    def _draw_box_icon(self, screen, rect, icon_name, color):
+        """Gambar ikon vektor sederhana (mahkota / perisai) di tengah kotak."""
+        cx, cy = rect.center
+        s = rect.width // 4
+        if icon_name == "crown":
+            pts = [
+                (cx - s, cy + s // 2),
+                (cx - s, cy - s // 2),
+                (cx - s // 2, cy),
+                (cx, cy - s),
+                (cx + s // 2, cy),
+                (cx + s, cy - s // 2),
+                (cx + s, cy + s // 2),
+            ]
+            pygame.draw.polygon(screen, color, pts)
+        elif icon_name == "shield":
+            pts = [
+                (cx - s, cy - s),
+                (cx + s, cy - s),
+                (cx + s, cy),
+                (cx, cy + s),
+                (cx - s, cy),
+            ]
+            pygame.draw.polygon(screen, color, pts)

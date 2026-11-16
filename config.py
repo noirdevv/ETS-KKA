@@ -142,3 +142,36 @@ LIGHT_THEME = {
     "TRACK": (203, 210, 224),
     "FILL": (14, 145, 212),
 }
+
+BOX_SKINS = {
+    "classic": {
+        "label": "Klasik (A / B)",
+        "type": "text",
+        P1: "A",
+        P2: "B",
+    },
+    "crown": {
+        "label": "Mahkota & Perisai",
+        "type": "icon",
+        P1: "crown",
+        P2: "shield",
+    },
+    "stripes": {
+        "label": "Garis & Polkadot",
+        "type": "pattern",
+        P1: "diagonal",
+        P2: "dots",
+    },
+    "pixel": {
+        "label": "Fire & Water",
+        "type": "image",
+        P1: os.path.join("assets", "skins", "flame.png"),
+        P2: os.path.join("assets", "skins", "water.png"),
+    },
+    "face": {
+        "label": "Duo Maut",
+        "type": "image",
+        P1: os.path.join("assets", "skins", "dewa.jpg"),
+        P2: os.path.join("assets", "skins", "komang.jpg"),
+    },
+}
