@@ -1,6 +1,6 @@
 import math
 import random
-from config import MCTS_EXPLORATION, MCTS_ITERATION
+from config import MCTS_EXPLORATION, MCTS_ITERATION, P1, P2
 
 
 class MCTSNode:
@@ -47,17 +47,16 @@ class MCTSNode:
         self.children.append(child_node)
         return child_node
 
-    def update(self, winner):
-        """Updates visit count and win score based on the simulated winner."""
+    def update(self, margin):
+        """Updates visit count and win score based on the rollout margin."""
         self.visits += 1
         if self.parent is None:
             return
 
         player_who_moved = self.parent.state.curr_player
-        if winner == player_who_moved:
-            self.wins += 1.0
-        elif winner == 0:  # Draw
-            self.wins += 0.5
+        # P1 is used because get_margin method returns a score from P1's perspective
+        reward = 0.5 + 0.5 * (margin if player_who_moved == P1 else -margin)
+        self.wins += reward
 
 
 def heuristic_rollout(state):
@@ -74,8 +73,13 @@ def heuristic_rollout(state):
             else:
                 move = random.choice(current.get_legal_moves())
         current.make_move(move)
-    return current.get_winner()
+    return get_margin(current)
 
+def get_margin(state):
+    """Returns the margin of victory for terminal state."""
+    boxes = state.row * state.col
+    scores = state.score
+    return (scores[P1] - scores[P2]) / boxes
 
 def get_mcts_move(state, iterations=MCTS_ITERATION, c_param=MCTS_EXPLORATION, use_heuristic=True):
     """Public entry point for the MCTS AI agent.
@@ -111,16 +115,16 @@ def get_mcts_move(state, iterations=MCTS_ITERATION, c_param=MCTS_EXPLORATION, us
 
         # 3. Simulation
         if use_heuristic:
-            winner = heuristic_rollout(node.state)
+            margin = heuristic_rollout(node.state)
         else:
             current = node.state.copy()
             while not current.is_game_over():
                 current.make_move(random.choice(current.get_legal_moves()))
-            winner = current.get_winner()
+            margin = get_margin(current)
 
         # 4. Backpropagation
         while node is not None:
-            node.update(winner)
+            node.update(margin)
             node = node.parent
 
     if not root.children:

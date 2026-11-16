@@ -45,6 +45,7 @@ def main():
     rows, cols = 4, 4
     state = GameState(rows, cols)
     ai_wait_until = 0
+    ai_move = None
 
     def start_new_match():
         nonlocal state, ai_wait_until
@@ -135,12 +136,15 @@ def main():
 
         pygame.display.flip()
 
-        if is_ai_turn and now >= ai_wait_until:
-            move = compute_ai_move(state, active_bot)
-            if move is not None:
-                state.make_move(move)
-                if not state.is_game_over() and current_bot_type(mode, state.curr_player, ai_type) is not None:
-                    ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000)
+        if is_ai_turn:
+            if ai_move is None:
+                ai_move = compute_ai_move(state, active_bot)
+            if now >= ai_wait_until:
+                if ai_move is not None:
+                    state.make_move(ai_move)
+                    if not state.is_game_over() and current_bot_type(mode, state.curr_player, ai_type) is not None:
+                        ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000)
+                ai_move = None
 
         clock.tick(FPS)
 
