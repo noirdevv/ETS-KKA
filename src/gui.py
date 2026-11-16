@@ -6,12 +6,8 @@ from config import (
     P1, P2, P1_NAME, P2_NAME,
     PLAYER_VS_PLAYER, AI_VS_PLAYER, AI_VS_AI, MINIMAX, MCTS,
     MARGIN, WINDOW_WIDTH, WINDOW_HEIGHT, CLICK_TOLERANCE,
-    COLOR_BG, COLOR_BAR, COLOR_DOT, COLOR_EMPTY_LINE,
-    COLOR_TEXT, COLOR_TEXT_INV, COLOR_MUTED, COLOR_WHITE,
-    COLOR_P1, COLOR_P2, COLOR_BOX_P1, COLOR_BOX_P2,
-    COLOR_BTN, COLOR_BTN_PRIMARY, COLOR_BTN_DISABLED,
-    COLOR_TEXT_DISABLED, COLOR_TRACK, COLOR_FILL,
-    UI_FONT_STACK, MONO_FONT_STACK, DISPLAY_TTF, MONO_TTF
+    DARK_THEME, LIGHT_THEME,
+    UI_FONT_STACK, MONO_FONT_STACK, DISPLAY_TTF, MONO_TTF,
 )
 from src.game_logic import HORIZONTAL, VERTICAL
 
@@ -20,8 +16,6 @@ DOT_R = 8
 HUD_HEIGHT = 105
 FOOTER_HEIGHT = 48
 
-PLAYER_COLOR = {P1: COLOR_P1, P2: COLOR_P2}
-BOX_COLOR = {P1: COLOR_BOX_P1, P2: COLOR_BOX_P2}
 BOX_LABEL = {P1: "A", P2: "B"}
 
 
@@ -38,6 +32,7 @@ def lighten(color, amount=0.5):
 def darken(color, amount=0.2):
     return tuple(max(0, int(c * (1.0 - amount))) for c in color)
 
+
 class GameGUI:
     def __init__(self, bgm_volume=35, sfx_volume=65):
         self.font_hero = load_font(DISPLAY_TTF, UI_FONT_STACK, 44)
@@ -45,6 +40,10 @@ class GameGUI:
         self.font_big = load_font(MONO_TTF, MONO_FONT_STACK, 28)
         self.font = load_font(DISPLAY_TTF, UI_FONT_STACK, 20)
         self.font_small = load_font(DISPLAY_TTF, UI_FONT_STACK, 15, bold=False)
+
+        # Tema tampilan (dark / light)
+        self.theme_name = "dark"
+        self.theme = DARK_THEME
 
         # Navigasi tampilan layar game
         self.menu_page = "home"  # "home" | "mode" | "size" | "settings"
@@ -65,6 +64,14 @@ class GameGUI:
         self.dragging_slider = None
         self.pressed_key = None
         self.confirm_action = None  # "menu" | "restart" | None
+
+    @property
+    def _player_colors(self):
+        return {P1: self.theme["P1"], P2: self.theme["P2"]}
+
+    @property
+    def _box_colors(self):
+        return {P1: self.theme["BOX_P1"], P2: self.theme["BOX_P2"]}
 
     def reset_menu(self):
         self.menu_page = "home"
@@ -100,7 +107,7 @@ class GameGUI:
 
     # Rendering menu
     def draw_menu(self, screen):
-        screen.fill(COLOR_BG)
+        screen.fill(self.theme["BG"])
         self.buttons.clear()
         self.game_buttons.clear()
         self.modal_buttons.clear()
@@ -118,12 +125,12 @@ class GameGUI:
         self._update_cursor(pygame.mouse.get_pos())
 
     def _draw_home_screen(self, screen):
-        pygame.draw.rect(screen, COLOR_BAR, (0, 0, WINDOW_WIDTH, 18))
+        pygame.draw.rect(screen, self.theme["BAR"], (0, 0, WINDOW_WIDTH, 18))
 
         cx = WINDOW_WIDTH // 2
-        t1 = self.font_hero.render("GARIS-GARIS", True, COLOR_P1)
-        t2 = self.font_hero.render("SQUARE", True, COLOR_TEXT)
-        sub = self.font_small.render("Dots & Boxes Adversarial AI", True, COLOR_MUTED)
+        t1 = self.font_hero.render("GARIS-GARIS", True, self.theme["P1"])
+        t2 = self.font_hero.render("SQUARE", True, self.theme["TEXT"])
+        sub = self.font_small.render("Dots & Boxes Adversarial AI", True, self.theme["MUTED"])
 
         screen.blit(t1, t1.get_rect(center=(cx, 175)))
         screen.blit(t2, t2.get_rect(center=(cx, 228)))
@@ -144,37 +151,6 @@ class GameGUI:
             if style != "disabled":
                 self.buttons[key] = rect
             self._draw_button(screen, rect, label, style, key=key)
-
-    def _draw_settings_screen(self, screen):
-        self._draw_header(screen, "Settings")
-        cx = WINDOW_WIDTH // 2
-
-        self._draw_range_slider(
-            screen,
-            key="bgm",
-            label=f"Background Music: {self.bgm_volume}%",
-            value=self.bgm_volume,
-            min_val=0,
-            max_val=100,
-            y=235,
-            tick_step=25,
-        )
-        self._draw_range_slider(
-            screen,
-            key="sfx",
-            label=f"Sound Effects: {self.sfx_volume}%",
-            value=self.sfx_volume,
-            min_val=0,
-            max_val=100,
-            y=375,
-            tick_step=25,
-        )
-
-        test_rect = pygame.Rect(cx - 120, 495, 240, 50)
-        self.buttons["test_sfx"] = test_rect
-        self._draw_button(screen, test_rect, "Tes Sound Effect", "secondary", key="test_sfx")
-
-        self._draw_back_button(screen, "back_home")
 
     def _draw_mode_screen(self, screen):
         self._draw_header(screen, "Pilih Lawan")
@@ -197,7 +173,7 @@ class GameGUI:
         # Garis pemisah mode pemain dan mode nonton bot
         div_y = start_y + 3 * btn_h + 2 * gap + 24
         pygame.draw.line(
-            screen, COLOR_TRACK,
+            screen, self.theme["TRACK"],
             (cx - btn_w // 2, div_y),
             (cx + btn_w // 2, div_y),
             width=2,
@@ -215,9 +191,9 @@ class GameGUI:
         cx = WINDOW_WIDTH // 2
 
         badge = pygame.Rect(cx - 110, 155, 220, 52)
-        pygame.draw.rect(screen, COLOR_WHITE, badge, border_radius=14)
-        pygame.draw.rect(screen, COLOR_BAR, badge, width=2, border_radius=14)
-        dim_txt = self.font_title.render(f"{self.selected_rows} × {self.selected_cols}", True, COLOR_TEXT_INV)
+        pygame.draw.rect(screen, self.theme["BTN"], badge, border_radius=14)
+        pygame.draw.rect(screen, self.theme["FILL"], badge, width=2, border_radius=14)
+        dim_txt = self.font_title.render(f"{self.selected_rows} × {self.selected_cols}", True, self.theme["TEXT"])
         screen.blit(dim_txt, dim_txt.get_rect(center=badge.center))
 
         self._draw_range_slider(
@@ -245,16 +221,54 @@ class GameGUI:
 
         self._draw_back_button(screen, "back_mode")
 
+    def _draw_settings_screen(self, screen):
+        self._draw_header(screen, "Settings")
+        cx = WINDOW_WIDTH // 2
+
+        self._draw_range_slider(
+            screen,
+            key="bgm",
+            label=f"Background Music: {self.bgm_volume}%",
+            value=self.bgm_volume,
+            min_val=0,
+            max_val=100,
+            y=215,
+            tick_step=25,
+        )
+        self._draw_range_slider(
+            screen,
+            key="sfx",
+            label=f"Sound Effects: {self.sfx_volume}%",
+            value=self.sfx_volume,
+            min_val=0,
+            max_val=100,
+            y=340,
+            tick_step=25,
+        )
+
+        # Toggle Dark / Light Mode
+        theme_label = "Tema: Dark Mode" if self.theme_name == "dark" else "Tema: Light Mode"
+        theme_rect = pygame.Rect(cx - 135, 435, 270, 50)
+        self.buttons["toggle_theme"] = theme_rect
+        self._draw_button(screen, theme_rect, theme_label, "secondary", key="toggle_theme")
+
+        # Tombol tes bunyi SFX
+        test_rect = pygame.Rect(cx - 135, 505, 270, 50)
+        self.buttons["test_sfx"] = test_rect
+        self._draw_button(screen, test_rect, "Tes Sound Effect", "secondary", key="test_sfx")
+
+        self._draw_back_button(screen, "back_home")
+
     def _draw_header(self, screen, title_text):
-        pygame.draw.rect(screen, COLOR_BAR, (0, 0, WINDOW_WIDTH, HUD_HEIGHT))
-        lbl = self.font_title.render(title_text, True, COLOR_WHITE)
+        pygame.draw.rect(screen, self.theme["BAR"], (0, 0, WINDOW_WIDTH, HUD_HEIGHT))
+        lbl = self.font_title.render(title_text, True, self.theme["WHITE"])
         screen.blit(lbl, lbl.get_rect(center=(WINDOW_WIDTH // 2, HUD_HEIGHT // 2)))
 
     def _draw_back_button(self, screen, key):
         rect = pygame.Rect(WINDOW_WIDTH // 2 - 90, WINDOW_HEIGHT - 95, 180, 44)
         self.buttons[key] = rect
         hovered = rect.collidepoint(pygame.mouse.get_pos())
-        color = COLOR_TEXT if hovered else COLOR_MUTED
+        color = self.theme["TEXT"] if hovered else self.theme["MUTED"]
         lbl = self.font.render("< Kembali", True, color)
         screen.blit(lbl, lbl.get_rect(center=rect.center))
 
@@ -267,35 +281,34 @@ class GameGUI:
         pulse = self._pulse()
 
         if style == "primary":
-            bg = COLOR_BTN_PRIMARY
+            bg = self.theme["BTN_PRIMARY"]
             if pressed:
                 bg = darken(bg, 0.15)
             elif hovered:
-                # Efek kilau / kedip halus saat cursor mengarah ke tombol utama
                 bg = lighten(bg, 0.14 + 0.14 * pulse)
-            fg, border = COLOR_WHITE, None
+            fg, border = self.theme["WHITE"], None
         elif style == "disabled":
-            bg, fg, border = COLOR_BTN_DISABLED, COLOR_TEXT_DISABLED, None
+            bg, fg, border = self.theme["BTN_DISABLED"], self.theme["TEXT_DISABLED"], None
         elif style == "danger":
-            bg = COLOR_P1
+            bg = self.theme["P1"]
             if pressed:
                 bg = darken(bg, 0.15)
             elif hovered:
                 bg = lighten(bg, 0.14 + 0.14 * pulse)
-            fg, border = COLOR_WHITE, None
+            fg, border = self.theme["WHITE"], None
         else:
-            bg = COLOR_BTN
+            bg = self.theme["BTN"]
             if pressed:
                 bg = darken(bg, 0.08)
             elif hovered:
-                bg = lighten(COLOR_FILL, 0.78 + 0.10 * pulse)
-            fg = COLOR_FILL if hovered else COLOR_TEXT
-            border = COLOR_FILL if hovered else COLOR_BAR
+                bg = lighten(self.theme["FILL"], 0.78 + 0.10 * pulse)
+            fg = self.theme["FILL"] if hovered else self.theme["TEXT"]
+            border = self.theme["FILL"] if hovered else self.theme["TRACK"]
 
         # Lingkaran cahaya tipis di luar tombol saat hover
         if hovered and not pressed:
             glow_rect = draw_rect.inflate(6, 6)
-            glow_color = lighten(COLOR_FILL if style != "danger" else COLOR_P1, 0.55)
+            glow_color = lighten(self.theme["FILL"] if style != "danger" else self.theme["P1"], 0.55)
             pygame.draw.rect(screen, glow_color, glow_rect, width=2, border_radius=18)
 
         pygame.draw.rect(screen, bg, draw_rect, border_radius=16)
@@ -314,30 +327,30 @@ class GameGUI:
 
         hovered = hit_rect.collidepoint(pygame.mouse.get_pos()) or (self.dragging_slider == key)
 
-        lbl = self.font.render(label, True, COLOR_TEXT)
+        lbl = self.font.render(label, True, self.theme["TEXT"])
         screen.blit(lbl, (track_x, y - 34))
 
         track_rect = pygame.Rect(track_x, y, track_w, track_h)
-        pygame.draw.rect(screen, COLOR_TRACK, track_rect, border_radius=4)
+        pygame.draw.rect(screen, self.theme["TRACK"], track_rect, border_radius=4)
 
         ratio = (value - min_val) / (max_val - min_val)
         knob_x = int(track_x + ratio * track_w)
         knob_y = y + track_h // 2
 
-        fill_color = lighten(COLOR_FILL, 0.15) if hovered else COLOR_FILL
+        fill_color = lighten(self.theme["FILL"], 0.15) if hovered else self.theme["FILL"]
         fill_rect = pygame.Rect(track_x, y, knob_x - track_x, track_h)
         pygame.draw.rect(screen, fill_color, fill_rect, border_radius=4)
 
         for v in range(min_val, max_val + 1, tick_step):
             tx = int(track_x + ((v - min_val) / (max_val - min_val)) * track_w)
-            tick_color = COLOR_TEXT if v == value else COLOR_MUTED
+            tick_color = self.theme["TEXT"] if v == value else self.theme["MUTED"]
             tick_lbl = self.font_small.render(str(v), True, tick_color)
             screen.blit(tick_lbl, tick_lbl.get_rect(center=(tx, y + 26)))
 
         if hovered:
-            pygame.draw.circle(screen, lighten(COLOR_FILL, 0.65), (knob_x, knob_y), 19)
+            pygame.draw.circle(screen, lighten(self.theme["FILL"], 0.65), (knob_x, knob_y), 19)
         pygame.draw.circle(screen, fill_color, (knob_x, knob_y), 13)
-        pygame.draw.circle(screen, COLOR_WHITE, (knob_x, knob_y), 5)
+        pygame.draw.circle(screen, self.theme["WHITE"], (knob_x, knob_y), 5)
 
     def _update_slider_from_x(self, key, mouse_x):
         if key not in self.sliders:
@@ -389,6 +402,14 @@ class GameGUI:
                     self.menu_page = "mode"
                 elif released_key == "settings":
                     self.menu_page = "settings"
+                elif released_key == "toggle_theme":
+                    if self.theme_name == "dark":
+                        self.theme_name = "light"
+                        self.theme = LIGHT_THEME
+                    else:
+                        self.theme_name = "dark"
+                        self.theme = DARK_THEME
+                    return "theme_changed"
                 elif released_key == "test_sfx":
                     return "test_sfx"
                 elif released_key == "exit":
@@ -421,7 +442,7 @@ class GameGUI:
 
         return None
 
-    # Event handler tombol footer & popup konfirmasi saat permainan berlangsung
+    # Event handler
     def handle_game_ui_event(self, event, state):
         """Menangani klik pada footer (Menu/Ulang) dan modal konfirmasi.
         Mengembalikan 'menu', 'restart', 'handled', atau None.
@@ -432,6 +453,7 @@ class GameGUI:
                     self.close_confirm()
                 elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
                     action = self.confirm_action
+                    state.__init__(state.row, state.col)
                     self.close_confirm()
                     return action
                 return "handled"
@@ -457,7 +479,6 @@ class GameGUI:
 
             return "handled"
 
-        # Klik tombol aksi di footer saat gameplay
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             for key, rect in self.game_buttons.items():
                 if rect.collidepoint(event.pos):
@@ -475,7 +496,7 @@ class GameGUI:
 
         return None
 
-    # Layout papan permainan
+    # Layout board game
     def _layout(self, state):
         side_pad = 32
         avail_w = WINDOW_WIDTH - 2 * side_pad
@@ -528,7 +549,7 @@ class GameGUI:
         self.modal_buttons.clear()
 
         labels = self._player_labels(mode, ai_type)
-        screen.fill(COLOR_BG)
+        screen.fill(self.theme["BG"])
         self._draw_boxes(screen, state)
         self._draw_lines(screen, state, hover)
         self._draw_dots(screen, state)
@@ -543,19 +564,20 @@ class GameGUI:
         self._update_cursor(pygame.mouse.get_pos())
 
     def _draw_top_bar(self, screen, state, labels):
-        pygame.draw.rect(screen, COLOR_BAR, (0, 0, WINDOW_WIDTH, HUD_HEIGHT))
+        pygame.draw.rect(screen, self.theme["BAR"], (0, 0, WINDOW_WIDTH, HUD_HEIGHT))
         over = state.is_game_over()
         card_w = (WINDOW_WIDTH // 2) - 24
+        p_colors = self._player_colors
         for i, p in enumerate((P1, P2)):
             cx = WINDOW_WIDTH * (2 * i + 1) // 4
             active = (p == state.curr_player) and not over
             if active:
                 pygame.draw.rect(
-                    screen, COLOR_WHITE,
+                    screen, self.theme["WHITE"],
                     (cx - card_w // 2, 12, card_w, HUD_HEIGHT - 24),
                     border_radius=14,
                 )
-            fg = PLAYER_COLOR[p] if active else COLOR_WHITE
+            fg = p_colors[p] if active else self.theme["WHITE"]
             name = self.font.render(labels[p], True, fg)
             score = self.font_big.render(str(state.score[p]), True, fg)
             screen.blit(name, name.get_rect(center=(cx, 35)))
@@ -563,7 +585,7 @@ class GameGUI:
 
     def _draw_footer(self, screen, state, labels, ai_thinking):
         y = WINDOW_HEIGHT - FOOTER_HEIGHT
-        pygame.draw.rect(screen, COLOR_BAR, (0, y, WINDOW_WIDTH, FOOTER_HEIGHT))
+        pygame.draw.rect(screen, self.theme["BAR"], (0, y, WINDOW_WIDTH, FOOTER_HEIGHT))
 
         if state.is_game_over():
             status = "Permainan Selesai"
@@ -572,10 +594,10 @@ class GameGUI:
         else:
             status = f"Giliran: {labels[state.curr_player]}"
 
-        lbl = self.font_small.render(status, True, COLOR_WHITE)
+        lbl = self.font_small.render(status, True, self.theme["WHITE"])
         screen.blit(lbl, lbl.get_rect(midleft=(16, y + FOOTER_HEIGHT // 2)))
 
-        # Tombol interaktif di sisi kanan footer (Menu & Ulang)
+        # Tombol interaktif
         mouse_pos = pygame.mouse.get_pos()
         btn_h = 30
         btn_y = y + (FOOTER_HEIGHT - btn_h) // 2
@@ -587,17 +609,17 @@ class GameGUI:
             rect = pygame.Rect(right_x, btn_y, btn_w, btn_h)
             self.game_buttons[key] = rect
             hovered = rect.collidepoint(mouse_pos)
-            bg = lighten(COLOR_BAR, 0.25) if hovered else lighten(COLOR_BAR, 0.12)
+            bg = lighten(self.theme["BAR"], 0.25) if hovered else lighten(self.theme["BAR"], 0.12)
             pygame.draw.rect(screen, bg, rect, border_radius=8)
             if hovered:
-                pygame.draw.rect(screen, COLOR_WHITE, rect, width=1, border_radius=8)
-            btn_lbl = self.font_small.render(text, True, COLOR_WHITE)
+                pygame.draw.rect(screen, self.theme["WHITE"], rect, width=1, border_radius=8)
+            btn_lbl = self.font_small.render(text, True, self.theme["WHITE"])
             screen.blit(btn_lbl, btn_lbl.get_rect(center=rect.center))
             right_x -= 8
 
     def _draw_confirm_modal(self, screen):
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
-        overlay.fill(COLOR_TEXT_INV)
+        overlay.fill(self.theme["TEXT_INV"])
         screen.blit(overlay, (0, 0))
 
         card_w, card_h = 340, 210
@@ -607,8 +629,8 @@ class GameGUI:
             card_w,
             card_h,
         )
-        pygame.draw.rect(screen, COLOR_BG, card_rect, border_radius=20)
-        pygame.draw.rect(screen, COLOR_MUTED, card_rect, width=2, border_radius=20)
+        pygame.draw.rect(screen, self.theme["BG"], card_rect, border_radius=20)
+        pygame.draw.rect(screen, self.theme["MUTED"], card_rect, width=2, border_radius=20)
 
         if self.confirm_action == "menu":
             title_txt = "Kembali ke Menu?"
@@ -618,8 +640,8 @@ class GameGUI:
             desc_txt = "Papan akan direset dari awal."
 
         cx = WINDOW_WIDTH // 2
-        title_surf = self.font_title.render(title_txt, True, COLOR_TEXT)
-        desc_surf = self.font_small.render(desc_txt, True, COLOR_MUTED)
+        title_surf = self.font_title.render(title_txt, True, self.theme["TEXT"])
+        desc_surf = self.font_small.render(desc_txt, True, self.theme["MUTED"])
         screen.blit(title_surf, title_surf.get_rect(center=(cx, card_rect.top + 48)))
         screen.blit(desc_surf, desc_surf.get_rect(center=(cx, card_rect.top + 88)))
 
@@ -637,19 +659,22 @@ class GameGUI:
     def _draw_boxes(self, screen, state):
         cell_size, _, _ = self._layout(state)
         box_font = load_font(MONO_TTF, MONO_FONT_STACK, max(16, cell_size // 3))
+        p_colors = self._player_colors
+        b_colors = self._box_colors
         for r in range(state.row):
             for c in range(state.col):
                 owner = int(state.box_owner[r, c])
                 if owner == 0:
                     continue
                 x, y = self.dot_pos(r, c, state)
-                pygame.draw.rect(screen, BOX_COLOR[owner], (x, y, cell_size, cell_size))
-                label = box_font.render(BOX_LABEL[owner], True, PLAYER_COLOR[owner])
+                pygame.draw.rect(screen, b_colors[owner], (x, y, cell_size, cell_size))
+                label = box_font.render(BOX_LABEL[owner], True, p_colors[owner])
                 screen.blit(label, label.get_rect(center=(x + cell_size // 2, y + cell_size // 2)))
 
     def _draw_lines(self, screen, state, hover):
         cell_size, _, _ = self._layout(state)
         thick = max(6, min(LINE_THICK, cell_size // 7))
+        p_colors = self._player_colors
         taken = []
 
         for r in range(state.row + 1):
@@ -657,7 +682,7 @@ class GameGUI:
                 owner = int(state.h_line[r, c])
                 if owner == 0:
                     a, b = self._endpoints((HORIZONTAL, r, c), state)
-                    pygame.draw.line(screen, COLOR_EMPTY_LINE, a, b, thick)
+                    pygame.draw.line(screen, self.theme["EMPTY_LINE"], a, b, thick)
                 else:
                     taken.append(((HORIZONTAL, r, c), owner))
         for r in range(state.row):
@@ -665,20 +690,20 @@ class GameGUI:
                 owner = int(state.v_line[r, c])
                 if owner == 0:
                     a, b = self._endpoints((VERTICAL, r, c), state)
-                    pygame.draw.line(screen, COLOR_EMPTY_LINE, a, b, thick)
+                    pygame.draw.line(screen, self.theme["EMPTY_LINE"], a, b, thick)
                 else:
                     taken.append(((VERTICAL, r, c), owner))
 
         for move, owner in taken:
             a, b = self._endpoints(move, state)
             if move == state.last_move:
-                pygame.draw.line(screen, COLOR_TEXT, a, b, thick + 4)
-            pygame.draw.line(screen, PLAYER_COLOR[owner], a, b, thick)
+                pygame.draw.line(screen, self.theme["TEXT"], a, b, thick + 4)
+            pygame.draw.line(screen, p_colors[owner], a, b, thick)
 
         if hover is not None and not state.is_game_over() and self.confirm_action is None:
             a, b = self._endpoints(hover, state)
             pulse_amt = 0.35 + 0.25 * self._pulse(0.008)
-            pygame.draw.line(screen, lighten(PLAYER_COLOR[state.curr_player], pulse_amt),
+            pygame.draw.line(screen, lighten(p_colors[state.curr_player], pulse_amt),
                              a, b, thick)
 
     def _draw_dots(self, screen, state):
@@ -686,24 +711,25 @@ class GameGUI:
         dot_r = max(5, min(DOT_R, cell_size // 9))
         for r in range(state.row + 1):
             for c in range(state.col + 1):
-                pygame.draw.circle(screen, COLOR_DOT, self.dot_pos(r, c, state), dot_r)
+                pygame.draw.circle(screen, self.theme["DOT"], self.dot_pos(r, c, state), dot_r)
 
     def _draw_game_over(self, screen, state, labels):
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((*COLOR_BG, 230))
+        overlay.fill((*self.theme["BG"], 230))
         screen.blit(overlay, (0, 0))
 
+        p_colors = self._player_colors
         winner = state.get_winner()
         if winner in labels:
-            title, color = f"{labels[winner]} Menang!", PLAYER_COLOR[winner]
+            title, color = f"{labels[winner]} Menang!", p_colors[winner]
         else:
-            title, color = "Seri!", COLOR_TEXT
+            title, color = "Seri!", self.theme["TEXT"]
         score_txt = f"{state.score[P1]}  -  {state.score[P2]}"
 
         cx, cy = WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2
         for surf, dy in (
             (self.font_title.render(title, True, color), -35),
-            (self.font.render(score_txt, True, COLOR_TEXT), 10),
-            (self.font_small.render("Klik / R untuk ulang  |  M untuk menu", True, COLOR_MUTED), 50),
+            (self.font.render(score_txt, True, self.theme["TEXT"]), 10),
+            (self.font_small.render("Klik / R untuk ulang  |  M untuk menu", True, self.theme["MUTED"]), 50),
         ):
             screen.blit(surf, surf.get_rect(center=(cx, cy + dy)))
