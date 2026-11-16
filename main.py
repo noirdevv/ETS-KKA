@@ -9,6 +9,7 @@ from config import (
 )
 from src.game_logic import GameState
 from src.gui import GameGUI
+from src.audio import AudioManager
 from src.ai.minimax import get_minimax_move
 from src.ai.mcts import get_mcts_move
 from src.logger import save_match_report
@@ -64,6 +65,9 @@ def main():
     clock = pygame.time.Clock()
 
     gui = GameGUI()
+    audio = AudioManager()
+    audio.play_bgm()
+
     screen_state = "menu"
     mode = PLAYER_VS_PLAYER
     ai_type = MINIMAX
@@ -72,6 +76,16 @@ def main():
     ai_wait_until = 0
     move_logs = []
     match_logged = False
+
+    def apply_move_with_audio(move):
+        completed = state.make_move(move)
+        if completed > 0:
+            audio.play_sfx("capture")
+        else:
+            audio.play_sfx("draw")
+
+        if state.is_game_over():
+            audio.play_sfx("win")
 
     def start_new_match():
         nonlocal state, ai_wait_until, move_logs, match_logged
@@ -101,9 +115,14 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+
+            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_s, pygame.K_F10):
+                audio.toggle_mute()
+
             elif screen_state == "menu":
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
+                        audio.play_sfx("click")
                         if gui.menu_page == "size":
                             gui.menu_page = "mode"
                         elif gui.menu_page == "mode":
@@ -113,44 +132,55 @@ def main():
                     elif event.key == pygame.K_F11:
                         pygame.display.toggle_fullscreen()
                 else:
+                    prev_page = gui.menu_page
                     result = gui.handle_menu_event(event)
                     if result == "exit":
+                        audio.play_sfx("click")
                         running = False
                     elif isinstance(result, dict):
+                        audio.play_sfx("click")
                         mode = result["mode"]
                         ai_type = result["ai"]
                         rows = result["rows"]
                         cols = result["cols"]
                         start_new_match()
                         screen_state = "playing"
+                    elif gui.menu_page != prev_page:
+                        audio.play_sfx("click")
 
             elif screen_state == "playing":
+                was_confirming = gui.confirm_action is not None
                 ui_action = gui.handle_game_ui_event(event, state)
-                if ui_action == "menu":
-                    request_game_action("menu")
-                    continue
-                elif ui_action == "restart":
-                    request_game_action("restart")
+
+                if ui_action in ("menu", "restart"):
+                    audio.play_sfx("click")
+                    request_game_action(ui_action)
                     continue
                 elif ui_action == "handled":
+                    if was_confirming and gui.confirm_action is None:
+                        audio.play_sfx("click")
                     continue
 
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
+                        audio.play_sfx("click")
                         request_game_action("menu")
                     elif event.key == pygame.K_F11:
                         pygame.display.toggle_fullscreen()
                     elif event.key == pygame.K_r:
+                        audio.play_sfx("click")
                         request_game_action("restart")
                     elif event.key == pygame.K_m:
+                        audio.play_sfx("click")
                         request_game_action("menu")
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if state.is_game_over():
+                        audio.play_sfx("click")
                         start_new_match()
                     elif not is_ai_turn:
                         move = gui.pos_to_move(event.pos, state)
                         if move is not None:
-                            state.make_move(move)
+                            apply_move_with_audio(move)
                             if current_bot_type(mode, state.curr_player, ai_type) is not None:
                                 ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000)
 
@@ -168,11 +198,11 @@ def main():
             move, record = compute_ai_move(state, active_bot)
             if move is not None:
                 move_logs.append(record)
-                state.make_move(move)
+                apply_move_with_audio(move)
                 if not state.is_game_over() and current_bot_type(mode, state.curr_player, ai_type) is not None:
                     ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000)
 
-        # Simpan laporan ke .txt
+        # Simpan laporan performa ke .txt tepat satu kali saat match selesai
         if screen_state == "playing" and state.is_game_over() and not match_logged:
             labels = gui._player_labels(mode, ai_type)
             save_match_report(

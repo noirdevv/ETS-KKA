@@ -70,6 +70,6 @@ COLOR_FILL = (56, 189, 248)
 UI_FONT_STACK = "trebuchetms,verdana,comicsansms"
 MONO_FONT_STACK = "consolas,sfmono,ubuntumono,couriernew"
 
-FONT_DIR = os.path.join("assets")
+FONT_DIR = os.path.join("assets", "fonts")
 DISPLAY_TTF = os.path.join(FONT_DIR, "Fredoka-Bold.ttf")
 MONO_TTF = os.path.join(FONT_DIR, "JetBrainsMono-Bold.ttf")
