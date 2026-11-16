@@ -40,6 +40,15 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
+Jika menggunakan python versi 3.14+ dan tidak dapat menginstal pygame
+
+```powershell
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python main.py
+```
+
 Jika aktivasi virtual environment dibatasi oleh kebijakan PowerShell, jalankan perintah melalui interpreter virtual environment secara langsung:
 
 ```powershell
