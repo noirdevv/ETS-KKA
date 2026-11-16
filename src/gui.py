@@ -3,26 +3,14 @@ import pygame
 from config import (
     P1, P2, P1_NAME, P2_NAME,
     PLAYER_VS_PLAYER, AI_VS_PLAYER, MINIMAX, MCTS,
-    MARGIN, WINDOW_WIDTH, WINDOW_HEIGHT,
-    CLICK_TOLERANCE, COLOR_P1, COLOR_P2,
+    MARGIN, WINDOW_WIDTH, WINDOW_HEIGHT, CLICK_TOLERANCE,
+    COLOR_BG, COLOR_BAR, COLOR_DOT, COLOR_EMPTY_LINE,
+    COLOR_TEXT, COLOR_MUTED, COLOR_WHITE,
+    COLOR_P1, COLOR_P2, COLOR_BOX_P1, COLOR_BOX_P2,
+    COLOR_BTN, COLOR_BTN_PRIMARY, COLOR_BTN_DISABLED,
+    COLOR_TEXT_DISABLED, COLOR_TRACK, COLOR_FILL,
 )
 from src.game_logic import HORIZONTAL, VERTICAL
-
-COLOR_BOARD = (253, 232, 228)
-COLOR_BAR = (255, 99, 92)
-COLOR_EMPTY = (255, 255, 255)
-COLOR_DOT_BLACK = (0, 0, 0)
-COLOR_WHITE = (255, 255, 255)
-COLOR_DARK = (60, 30, 30)
-COLOR_MUTED = (150, 130, 130)
-
-COLOR_BTN = (255, 255, 255)
-COLOR_BTN_PRIMARY = (255, 99, 92)
-COLOR_BTN_DISABLED = (232, 220, 218)
-COLOR_TEXT_DISABLED = (165, 150, 150)
-
-COLOR_TRACK = (218, 205, 203)
-COLOR_FILL = (60, 100, 220)
 
 LINE_THICK = 9
 DOT_R = 8
@@ -30,7 +18,10 @@ HUD_HEIGHT = 105
 FOOTER_HEIGHT = 44
 
 PLAYER_COLOR = {P1: COLOR_P1, P2: COLOR_P2}
-BOX_COLOR = {P1: (246, 168, 168), P2: (172, 196, 245)}
+BOX_COLOR = {P1: COLOR_BOX_P1, P2: COLOR_BOX_P2}
+
+UI_FONT_STACK = "segoeui,sfprodisplay,ubuntu,helvetica,arial"
+MONO_FONT_STACK = "consolas,sfmono,ubuntumono,couriernew"
 
 
 def lighten(color, amount=0.5):
@@ -39,20 +30,20 @@ def lighten(color, amount=0.5):
 
 class GameGUI:
     def __init__(self):
-        self.font_hero = pygame.font.SysFont("arial", 46, bold=True)
-        self.font_title = pygame.font.SysFont("arial", 30, bold=True)
-        self.font_big = pygame.font.SysFont("arial", 28, bold=True)
-        self.font = pygame.font.SysFont("arial", 20, bold=True)
-        self.font_small = pygame.font.SysFont("arial", 15)
+        self.font_hero = pygame.font.SysFont(UI_FONT_STACK, 42, bold=True)
+        self.font_title = pygame.font.SysFont(UI_FONT_STACK, 28, bold=True)
+        self.font_big = pygame.font.SysFont(MONO_FONT_STACK, 28, bold=True)
+        self.font = pygame.font.SysFont(UI_FONT_STACK, 19, bold=True)
+        self.font_small = pygame.font.SysFont(UI_FONT_STACK, 14)
 
-        # Navigation & selections
+        # Navigasi tampilan layar game
         self.menu_page = "home"  # "home" -> "mode" -> "size"
         self.selected_mode = PLAYER_VS_PLAYER
         self.selected_ai = MINIMAX
         self.selected_rows = 4
         self.selected_cols = 4
 
-        # Interactive UI hitboxes
+        # UI interaktif (buttons, sliders)
         self.buttons = {}
         self.sliders = {}
         self.dragging_slider = None
@@ -61,9 +52,8 @@ class GameGUI:
         self.menu_page = "home"
         self.dragging_slider = None
 
-    # ---------------- MENU RENDERING ----------------
     def draw_menu(self, screen):
-        screen.fill(COLOR_BOARD)
+        screen.fill(COLOR_BG)
         self.buttons.clear()
         self.sliders.clear()
 
@@ -75,20 +65,17 @@ class GameGUI:
             self._draw_size_screen(screen)
 
     def _draw_home_screen(self, screen):
-        # Decorative top accent bar
         pygame.draw.rect(screen, COLOR_BAR, (0, 0, WINDOW_WIDTH, 18))
 
-        # Big Game Title
         cx = WINDOW_WIDTH // 2
-        t1 = self.font_hero.render("GARIS-GARIS", True, COLOR_BAR)
-        t2 = self.font_hero.render("SQUARE", True, COLOR_DARK)
+        t1 = self.font_hero.render("GARIS-GARIS", True, COLOR_P1)
+        t2 = self.font_hero.render("SQUARE", True, COLOR_TEXT)
         sub = self.font_small.render("Dots & Boxes Adversarial AI", True, COLOR_MUTED)
 
         screen.blit(t1, t1.get_rect(center=(cx, 175)))
         screen.blit(t2, t2.get_rect(center=(cx, 228)))
         screen.blit(sub, sub.get_rect(center=(cx, 272)))
 
-        # Stacked Mobile Action Buttons
         btn_w, btn_h = 280, 58
         start_y = 365
         gap = 20
@@ -129,14 +116,12 @@ class GameGUI:
         self._draw_header(screen, "Ukuran Grid")
         cx = WINDOW_WIDTH // 2
 
-        # Live dimension preview badge
         badge = pygame.Rect(cx - 110, 155, 220, 52)
         pygame.draw.rect(screen, COLOR_WHITE, badge, border_radius=14)
         pygame.draw.rect(screen, COLOR_BAR, badge, width=2, border_radius=14)
-        dim_txt = self.font_title.render(f"{self.selected_rows} × {self.selected_cols}", True, COLOR_DARK)
+        dim_txt = self.font_title.render(f"{self.selected_rows} × {self.selected_cols}", True, COLOR_TEXT)
         screen.blit(dim_txt, dim_txt.get_rect(center=badge.center))
 
-        # Height & Width Range Sliders (3 to 7)
         self._draw_range_slider(
             screen,
             key="rows",
@@ -156,7 +141,6 @@ class GameGUI:
             y=405,
         )
 
-        # Mulai Main CTA
         start_rect = pygame.Rect(cx - 145, 535, 290, 60)
         self._draw_button(screen, start_rect, "Mulai Main", "primary")
         self.buttons["start_game"] = start_rect
@@ -180,7 +164,7 @@ class GameGUI:
         elif style == "disabled":
             bg, fg, border = COLOR_BTN_DISABLED, COLOR_TEXT_DISABLED, None
         else:
-            bg, fg, border = COLOR_BTN, COLOR_DARK, COLOR_BAR
+            bg, fg, border = COLOR_BTN, COLOR_TEXT, COLOR_BAR
 
         pygame.draw.rect(screen, bg, rect, border_radius=16)
         if border:
@@ -194,15 +178,12 @@ class GameGUI:
         track_h = 8
         track_x = (WINDOW_WIDTH - track_w) // 2
 
-        # Label above slider
-        lbl = self.font.render(label, True, COLOR_DARK)
+        lbl = self.font.render(label, True, COLOR_TEXT)
         screen.blit(lbl, (track_x, y - 34))
 
-        # Base track
         track_rect = pygame.Rect(track_x, y, track_w, track_h)
         pygame.draw.rect(screen, COLOR_TRACK, track_rect, border_radius=4)
 
-        # Active filled track
         ratio = (value - min_val) / (max_val - min_val)
         knob_x = int(track_x + ratio * track_w)
         knob_y = y + track_h // 2
@@ -210,17 +191,14 @@ class GameGUI:
         fill_rect = pygame.Rect(track_x, y, knob_x - track_x, track_h)
         pygame.draw.rect(screen, COLOR_FILL, fill_rect, border_radius=4)
 
-        # Tick labels (3..7)
         for v in range(min_val, max_val + 1):
             tx = int(track_x + ((v - min_val) / (max_val - min_val)) * track_w)
             tick_lbl = self.font_small.render(str(v), True, COLOR_MUTED)
             screen.blit(tick_lbl, tick_lbl.get_rect(center=(tx, y + 26)))
 
-        # Thumb knob
         pygame.draw.circle(screen, COLOR_FILL, (knob_x, knob_y), 13)
         pygame.draw.circle(screen, COLOR_WHITE, (knob_x, knob_y), 5)
 
-        # Generous hit area for touch/mouse dragging
         hit_rect = pygame.Rect(track_x - 18, y - 20, track_w + 36, 48)
         self.sliders[key] = (hit_rect, track_x, track_w, min_val, max_val)
 
@@ -237,20 +215,15 @@ class GameGUI:
 
     # ---------------- MENU EVENTS ----------------
     def handle_menu_event(self, event):
-        """Processes mouse events on menu screens.
-        Returns a config dict to start the game, 'exit' to quit, or None.
-        """
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             pos = event.pos
 
-            # Check slider touch
             for key, (hit_rect, *_rest) in self.sliders.items():
                 if hit_rect.collidepoint(pos):
                     self.dragging_slider = key
                     self._update_slider_from_x(key, pos[0])
                     return None
 
-            # Check button click
             for key, rect in self.buttons.items():
                 if rect.collidepoint(pos):
                     if key == "play":
@@ -288,9 +261,8 @@ class GameGUI:
 
         return None
 
-    # ---------------- BOARD GEOMETRY ----------------
+    # Layout boardgame
     def _layout(self, state):
-        """Dynamically scales any R x C grid to fit comfortably in the mobile viewport."""
         side_pad = 32
         avail_w = WINDOW_WIDTH - 2 * side_pad
         avail_h = WINDOW_HEIGHT - HUD_HEIGHT - FOOTER_HEIGHT - 2 * MARGIN
@@ -326,7 +298,7 @@ class GameGUI:
         candidates = [(d, m) for d, m in candidates if d <= tolerance]
         return min(candidates)[1] if candidates else None
 
-    # ---------------- GAME RENDERING ----------------
+    # Game rendering
     def _player_labels(self, mode, ai_type):
         if mode == AI_VS_PLAYER:
             bot_label = "Minimax" if ai_type == MINIMAX else "MCTS"
@@ -335,7 +307,7 @@ class GameGUI:
 
     def draw(self, screen, state, hover=None, mode=PLAYER_VS_PLAYER, ai_type=MINIMAX, ai_thinking=False):
         labels = self._player_labels(mode, ai_type)
-        screen.fill(COLOR_BOARD)
+        screen.fill(COLOR_BG)
         self._draw_boxes(screen, state)
         self._draw_lines(screen, state, hover)
         self._draw_dots(screen, state)
@@ -357,7 +329,7 @@ class GameGUI:
                     (cx - card_w // 2, 12, card_w, HUD_HEIGHT - 24),
                     border_radius=14,
                 )
-            fg = COLOR_BAR if active else COLOR_WHITE
+            fg = PLAYER_COLOR[p] if active else COLOR_WHITE
             name = self.font.render(labels[p], True, fg)
             score = self.font_big.render(str(state.score[p]), True, fg)
             screen.blit(name, name.get_rect(center=(cx, 35)))
@@ -377,7 +349,7 @@ class GameGUI:
 
     def _draw_boxes(self, screen, state):
         cell_size, _, _ = self._layout(state)
-        box_font = pygame.font.SysFont("arial", max(16, cell_size // 3), bold=True)
+        box_font = pygame.font.SysFont(MONO_FONT_STACK, max(16, cell_size // 3), bold=True)
         for r in range(state.row):
             for c in range(state.col):
                 owner = int(state.box_owner[r, c])
@@ -398,7 +370,7 @@ class GameGUI:
                 owner = int(state.h_line[r, c])
                 if owner == 0:
                     a, b = self._endpoints((HORIZONTAL, r, c), state)
-                    pygame.draw.line(screen, COLOR_EMPTY, a, b, thick)
+                    pygame.draw.line(screen, COLOR_EMPTY_LINE, a, b, thick)
                 else:
                     taken.append(((HORIZONTAL, r, c), owner))
         for r in range(state.row):
@@ -406,14 +378,14 @@ class GameGUI:
                 owner = int(state.v_line[r, c])
                 if owner == 0:
                     a, b = self._endpoints((VERTICAL, r, c), state)
-                    pygame.draw.line(screen, COLOR_EMPTY, a, b, thick)
+                    pygame.draw.line(screen, COLOR_EMPTY_LINE, a, b, thick)
                 else:
                     taken.append(((VERTICAL, r, c), owner))
 
         for move, owner in taken:
             a, b = self._endpoints(move, state)
             if move == state.last_move:
-                pygame.draw.line(screen, COLOR_DARK, a, b, thick + 4)
+                pygame.draw.line(screen, COLOR_TEXT, a, b, thick + 4)
             pygame.draw.line(screen, PLAYER_COLOR[owner], a, b, thick)
 
         if hover is not None and not state.is_game_over():
@@ -426,24 +398,24 @@ class GameGUI:
         dot_r = max(5, min(DOT_R, cell_size // 9))
         for r in range(state.row + 1):
             for c in range(state.col + 1):
-                pygame.draw.circle(screen, COLOR_DOT_BLACK, self.dot_pos(r, c, state), dot_r)
+                pygame.draw.circle(screen, COLOR_DOT, self.dot_pos(r, c, state), dot_r)
 
     def _draw_game_over(self, screen, state, labels):
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((*COLOR_BOARD, 230))
+        overlay.fill((*COLOR_BG, 230))
         screen.blit(overlay, (0, 0))
 
         winner = state.get_winner()
         if winner in labels:
             title, color = f"{labels[winner]} Menang!", PLAYER_COLOR[winner]
         else:
-            title, color = "Seri!", COLOR_DARK
+            title, color = "Seri!", COLOR_TEXT
         score_txt = f"{state.score[P1]}  -  {state.score[P2]}"
 
         cx, cy = WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2
         for surf, dy in (
             (self.font_title.render(title, True, color), -35),
-            (self.font.render(score_txt, True, COLOR_DARK), 10),
+            (self.font.render(score_txt, True, COLOR_TEXT), 10),
             (self.font_small.render("Klik / R untuk ulang  |  M untuk menu", True, COLOR_MUTED), 50),
         ):
             screen.blit(surf, surf.get_rect(center=(cx, cy + dy)))
