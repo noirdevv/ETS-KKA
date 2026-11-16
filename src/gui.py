@@ -38,9 +38,8 @@ def lighten(color, amount=0.5):
 def darken(color, amount=0.2):
     return tuple(max(0, int(c * (1.0 - amount))) for c in color)
 
-
 class GameGUI:
-    def __init__(self):
+    def __init__(self, bgm_volume=35, sfx_volume=65):
         self.font_hero = load_font(DISPLAY_TTF, UI_FONT_STACK, 44)
         self.font_title = load_font(DISPLAY_TTF, UI_FONT_STACK, 28)
         self.font_big = load_font(MONO_TTF, MONO_FONT_STACK, 28)
@@ -48,11 +47,15 @@ class GameGUI:
         self.font_small = load_font(DISPLAY_TTF, UI_FONT_STACK, 15, bold=False)
 
         # Navigasi tampilan layar game
-        self.menu_page = "home"  # "home" -> "mode" -> "size"
+        self.menu_page = "home"  # "home" | "mode" | "size" | "settings"
         self.selected_mode = PLAYER_VS_PLAYER
         self.selected_ai = MINIMAX
         self.selected_rows = 4
         self.selected_cols = 4
+
+        # Pengaturan audio (0 - 100)
+        self.bgm_volume = bgm_volume
+        self.sfx_volume = sfx_volume
 
         # State interaktif (hover, press, slider, modal konfirmasi)
         self.buttons = {}
@@ -109,6 +112,8 @@ class GameGUI:
             self._draw_mode_screen(screen)
         elif self.menu_page == "size":
             self._draw_size_screen(screen)
+        elif self.menu_page == "settings":
+            self._draw_settings_screen(screen)
 
         self._update_cursor(pygame.mouse.get_pos())
 
@@ -130,7 +135,7 @@ class GameGUI:
 
         items = [
             ("play", "Play", "primary"),
-            ("settings", "Settings", "disabled"),
+            ("settings", "Settings", "secondary"),
             ("exit", "Exit", "secondary"),
         ]
 
@@ -139,6 +144,37 @@ class GameGUI:
             if style != "disabled":
                 self.buttons[key] = rect
             self._draw_button(screen, rect, label, style, key=key)
+
+    def _draw_settings_screen(self, screen):
+        self._draw_header(screen, "Settings")
+        cx = WINDOW_WIDTH // 2
+
+        self._draw_range_slider(
+            screen,
+            key="bgm",
+            label=f"Background Music: {self.bgm_volume}%",
+            value=self.bgm_volume,
+            min_val=0,
+            max_val=100,
+            y=235,
+            tick_step=25,
+        )
+        self._draw_range_slider(
+            screen,
+            key="sfx",
+            label=f"Sound Effects: {self.sfx_volume}%",
+            value=self.sfx_volume,
+            min_val=0,
+            max_val=100,
+            y=375,
+            tick_step=25,
+        )
+
+        test_rect = pygame.Rect(cx - 120, 495, 240, 50)
+        self.buttons["test_sfx"] = test_rect
+        self._draw_button(screen, test_rect, "Tes Sound Effect", "secondary", key="test_sfx")
+
+        self._draw_back_button(screen, "back_home")
 
     def _draw_mode_screen(self, screen):
         self._draw_header(screen, "Pilih Lawan")
@@ -269,7 +305,7 @@ class GameGUI:
         lbl = self.font.render(text, True, fg)
         screen.blit(lbl, lbl.get_rect(center=draw_rect.center))
 
-    def _draw_range_slider(self, screen, key, label, value, min_val, max_val, y):
+    def _draw_range_slider(self, screen, key, label, value, min_val, max_val, y, tick_step=1):
         track_w = 300
         track_h = 8
         track_x = (WINDOW_WIDTH - track_w) // 2
@@ -292,7 +328,7 @@ class GameGUI:
         fill_rect = pygame.Rect(track_x, y, knob_x - track_x, track_h)
         pygame.draw.rect(screen, fill_color, fill_rect, border_radius=4)
 
-        for v in range(min_val, max_val + 1):
+        for v in range(min_val, max_val + 1, tick_step):
             tx = int(track_x + ((v - min_val) / (max_val - min_val)) * track_w)
             tick_color = COLOR_TEXT if v == value else COLOR_MUTED
             tick_lbl = self.font_small.render(str(v), True, tick_color)
@@ -305,7 +341,7 @@ class GameGUI:
 
     def _update_slider_from_x(self, key, mouse_x):
         if key not in self.sliders:
-            return
+            return None
         _, track_x, track_w, min_val, max_val = self.sliders[key]
         clamped = max(0.0, min(1.0, (mouse_x - track_x) / track_w))
         val = round(min_val + clamped * (max_val - min_val))
@@ -313,6 +349,13 @@ class GameGUI:
             self.selected_rows = val
         elif key == "cols":
             self.selected_cols = val
+        elif key == "bgm":
+            self.bgm_volume = val
+            return {"audio_changed": True, "bgm": self.bgm_volume, "sfx": self.sfx_volume}
+        elif key == "sfx":
+            self.sfx_volume = val
+            return {"audio_changed": True, "bgm": self.bgm_volume, "sfx": self.sfx_volume}
+        return None
 
     # Event handler menu
     def handle_menu_event(self, event):
@@ -322,8 +365,7 @@ class GameGUI:
             for key, (hit_rect, *_rest) in self.sliders.items():
                 if hit_rect.collidepoint(pos):
                     self.dragging_slider = key
-                    self._update_slider_from_x(key, pos[0])
-                    return None
+                    return self._update_slider_from_x(key, pos[0])
 
             for key, rect in self.buttons.items():
                 if rect.collidepoint(pos):
@@ -331,16 +373,24 @@ class GameGUI:
                     return None
 
         elif event.type == pygame.MOUSEMOTION and self.dragging_slider is not None:
-            self._update_slider_from_x(self.dragging_slider, event.pos[0])
+            return self._update_slider_from_x(self.dragging_slider, event.pos[0])
 
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            was_sfx_slider = self.dragging_slider == "sfx"
             self.dragging_slider = None
             released_key = self.pressed_key
             self.pressed_key = None
 
+            if was_sfx_slider:
+                return "test_sfx"
+
             if released_key and released_key in self.buttons and self.buttons[released_key].collidepoint(event.pos):
                 if released_key == "play":
                     self.menu_page = "mode"
+                elif released_key == "settings":
+                    self.menu_page = "settings"
+                elif released_key == "test_sfx":
+                    return "test_sfx"
                 elif released_key == "exit":
                     return "exit"
                 elif released_key == "back_home":

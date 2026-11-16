@@ -5,10 +5,11 @@ AUDIO_DIR = os.path.join("assets", "audio")
 
 
 class AudioManager:
-    def __init__(self, bgm_volume=0.35, sfx_volume=0.65):
+    def __init__(self, bgm_pct=35, sfx_pct=65):
         self.enabled = True
-        self.bgm_volume = bgm_volume
-        self.sfx_volume = sfx_volume
+        self.muted = False
+        self.bgm_pct = max(0, min(100, int(bgm_pct)))
+        self.sfx_pct = max(0, min(100, int(sfx_pct)))
         self.sounds = {}
 
         try:
@@ -27,11 +28,25 @@ class AudioManager:
         path = os.path.join(AUDIO_DIR, filename)
         if os.path.exists(path):
             sound = pygame.mixer.Sound(path)
-            sound.set_volume(self.sfx_volume)
+            sound.set_volume(self.sfx_pct / 100.0)
             self.sounds[name] = sound
 
+    def set_bgm_volume(self, pct):
+        self.bgm_pct = max(0, min(100, int(pct)))
+        self.muted = False
+        if self.enabled:
+            pygame.mixer.music.set_volume(self.bgm_pct / 100.0)
+
+    def set_sfx_volume(self, pct):
+        self.sfx_pct = max(0, min(100, int(pct)))
+        self.muted = False
+        if self.enabled:
+            vol = self.sfx_pct / 100.0
+            for s in self.sounds.values():
+                s.set_volume(vol)
+
     def play_sfx(self, name):
-        if not self.enabled or name not in self.sounds:
+        if not self.enabled or self.muted or self.sfx_pct == 0 or name not in self.sounds:
             return
         self.sounds[name].play()
 
@@ -41,17 +56,15 @@ class AudioManager:
         path = os.path.join(AUDIO_DIR, filename)
         if os.path.exists(path):
             pygame.mixer.music.load(path)
-            pygame.mixer.music.set_volume(self.bgm_volume)
+            pygame.mixer.music.set_volume(0.0 if self.muted else self.bgm_pct / 100.0)
             pygame.mixer.music.play(loops=loops)
 
     def toggle_mute(self):
         if not self.enabled:
             return
-        if pygame.mixer.music.get_volume() > 0:
-            pygame.mixer.music.set_volume(0.0)
-            for s in self.sounds.values():
-                s.set_volume(0.0)
-        else:
-            pygame.mixer.music.set_volume(self.bgm_volume)
-            for s in self.sounds.values():
-                s.set_volume(self.sfx_volume)
+        self.muted = not self.muted
+        bgm_vol = 0.0 if self.muted else self.bgm_pct / 100.0
+        sfx_vol = 0.0 if self.muted else self.sfx_pct / 100.0
+        pygame.mixer.music.set_volume(bgm_vol)
+        for s in self.sounds.values():
+            s.set_volume(sfx_vol)

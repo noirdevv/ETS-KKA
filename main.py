@@ -64,9 +64,9 @@ def main():
     pygame.display.set_caption(TITLE)
     clock = pygame.time.Clock()
 
-    gui = GameGUI()
     audio = AudioManager()
     audio.play_bgm()
+    gui = GameGUI(bgm_volume=audio.bgm_pct, sfx_volume=audio.sfx_pct)
 
     screen_state = "menu"
     mode = PLAYER_VS_PLAYER
@@ -116,6 +116,7 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
+            # Global mute toggle (S atau F10)
             elif event.type == pygame.KEYDOWN and event.key in (pygame.K_s, pygame.K_F10):
                 audio.toggle_mute()
 
@@ -125,7 +126,7 @@ def main():
                         audio.play_sfx("click")
                         if gui.menu_page == "size":
                             gui.menu_page = "mode"
-                        elif gui.menu_page == "mode":
+                        elif gui.menu_page in ("mode", "settings"):
                             gui.menu_page = "home"
                         else:
                             running = False
@@ -137,14 +138,20 @@ def main():
                     if result == "exit":
                         audio.play_sfx("click")
                         running = False
+                    elif result == "test_sfx":
+                        audio.play_sfx("capture")
                     elif isinstance(result, dict):
-                        audio.play_sfx("click")
-                        mode = result["mode"]
-                        ai_type = result["ai"]
-                        rows = result["rows"]
-                        cols = result["cols"]
-                        start_new_match()
-                        screen_state = "playing"
+                        if result.get("audio_changed"):
+                            audio.set_bgm_volume(result["bgm"])
+                            audio.set_sfx_volume(result["sfx"])
+                        else:
+                            audio.play_sfx("click")
+                            mode = result["mode"]
+                            ai_type = result["ai"]
+                            rows = result["rows"]
+                            cols = result["cols"]
+                            start_new_match()
+                            screen_state = "playing"
                     elif gui.menu_page != prev_page:
                         audio.play_sfx("click")
 
@@ -202,7 +209,6 @@ def main():
                 if not state.is_game_over() and current_bot_type(mode, state.curr_player, ai_type) is not None:
                     ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000)
 
-        # Simpan laporan performa ke .txt tepat satu kali saat match selesai
         if screen_state == "playing" and state.is_game_over() and not match_logged:
             labels = gui._player_labels(mode, ai_type)
             save_match_report(
