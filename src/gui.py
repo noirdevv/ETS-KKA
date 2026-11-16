@@ -10,6 +10,7 @@ from config import (
     UI_FONT_STACK, MONO_FONT_STACK, DISPLAY_TTF, MONO_TTF,
 )
 from src.game_logic import HORIZONTAL, VERTICAL
+from src.store import SKIN_PRICES
 
 LINE_THICK = 9
 DOT_R = 8
@@ -34,7 +35,7 @@ def darken(color, amount=0.2):
 
 
 class GameGUI:
-    def __init__(self, bgm_volume=35, sfx_volume=65):
+    def __init__(self, bgm_volume=35, sfx_volume=65, store=None):
         self.font_hero = load_font(DISPLAY_TTF, UI_FONT_STACK, 44)
         self.font_title = load_font(DISPLAY_TTF, UI_FONT_STACK, 28)
         self.font_big = load_font(MONO_TTF, MONO_FONT_STACK, 28)
@@ -65,7 +66,8 @@ class GameGUI:
         self.pressed_key = None
         self.confirm_action = None  # "menu" | "restart" | None
 
-        # Skins and background
+        # Skins, store, and background
+        self.store = store
         self.selected_skin = "classic"
         self._skin_cache = {}  # Cache gambar PNG yang sudah di-resize per cell_size
         self._bg_cache = {}
@@ -275,7 +277,7 @@ class GameGUI:
             value=self.bgm_volume,
             min_val=0,
             max_val=100,
-            y=215,
+            y=175,
             tick_step=25,
         )
         self._draw_range_slider(
@@ -285,26 +287,41 @@ class GameGUI:
             value=self.sfx_volume,
             min_val=0,
             max_val=100,
-            y=340,
+            y=275,
             tick_step=25,
         )
 
         # Toggle Dark / Light Mode
         theme_label = "Tema: Dark Mode" if self.theme_name == "dark" else "Tema: Light Mode"
-        theme_rect = pygame.Rect(cx - 145, 390, 290, 48)
+        theme_rect = pygame.Rect(cx - 145, 348, 290, 46)
         self.buttons["toggle_theme"] = theme_rect
         self._draw_button(screen, theme_rect, theme_label, "secondary", key="toggle_theme")
 
         # Skins
-        skin_label = f"Skin: {BOX_SKINS[self.selected_skin]['label']}"
-        skin_rect = pygame.Rect(cx - 145, 452, 290, 48)
+        pygame.draw.line(screen, self.theme["TRACK"], (cx - 145, 414), (cx + 145, 414), width=2)
+        skin_hdr = self.font.render("Skin", True, self.theme["TEXT"])
+        screen.blit(skin_hdr, skin_hdr.get_rect(center=(cx, 434)))
+
+        unlocked = self.store is None or self.store.is_unlocked(self.selected_skin)
+        skin_name = BOX_SKINS[self.selected_skin]["label"]
+        skin_label = f"{skin_name}" if unlocked else f"{skin_name} [Terkunci]"
+        skin_rect = pygame.Rect(cx - 145, 456, 290, 46)
         self.buttons["cycle_skin"] = skin_rect
         self._draw_button(screen, skin_rect, skin_label, "secondary", key="cycle_skin")
 
-        # Test SFX
-        test_rect = pygame.Rect(cx - 145, 514, 290, 48)
-        self.buttons["test_sfx"] = test_rect
-        self._draw_button(screen, test_rect, "Tes Sound Effect", "secondary", key="test_sfx")
+        # Microtransaction
+        buy_rect = pygame.Rect(cx - 145, 514, 290, 46)
+        if not unlocked:
+            price = SKIN_PRICES.get(self.selected_skin, 0)
+            self.buttons["buy_skin"] = buy_rect
+            self._draw_button(screen, buy_rect, f"Beli Skin (Rp {price:,})", "primary", key="buy_skin")
+        else:
+            self._draw_button(screen, buy_rect, "Skin Sudah Terbuka", "disabled")
+
+        # Status transaksi Midtrans (jika sedang/baru saja membeli)
+        if self.store and self.store.status_message:
+            status_surf = self.font_small.render(self.store.status_message, True, self.theme["FILL"])
+            screen.blit(status_surf, status_surf.get_rect(center=(cx, 582)))
 
         self._draw_back_button(screen, "back_home")
 
@@ -481,7 +498,13 @@ class GameGUI:
                 elif released_key == "ava":
                     self.selected_mode = AI_VS_AI
                     self.menu_page = "size"
+                elif released_key == "buy_skin":
+                    if self.store and not self.store.is_unlocked(self.selected_skin):
+                        self.store.start_purchase(self.selected_skin)
+                    return "buy_skin"
                 elif released_key == "start_game":
+                    if self.store and not self.store.is_unlocked(self.selected_skin):
+                        self.selected_skin = "classic"
                     return {
                         "mode": self.selected_mode,
                         "ai": self.selected_ai,
@@ -494,9 +517,10 @@ class GameGUI:
                     self.selected_skin = keys[next_idx]
                     return "skin_changed"
 
+
         return None
 
-    # Event handler
+    # Event handler game
     def handle_game_ui_event(self, event, state):
         """Menangani klik pada footer (Menu/Ulang) dan modal konfirmasi.
         Mengembalikan 'menu', 'restart', 'handled', atau None.

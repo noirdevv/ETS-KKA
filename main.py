@@ -10,6 +10,7 @@ from config import (
 from src.game_logic import GameState
 from src.gui import GameGUI
 from src.audio import AudioManager
+from src.store import StoreManager
 from src.ai.minimax import get_minimax_move
 from src.ai.mcts import get_mcts_move
 from src.logger import save_match_report
@@ -66,7 +67,8 @@ def main():
 
     audio = AudioManager()
     audio.play_bgm()
-    gui = GameGUI(bgm_volume=audio.bgm_pct, sfx_volume=audio.sfx_pct)
+    store = StoreManager()
+    gui = GameGUI(bgm_volume=audio.bgm_pct, sfx_volume=audio.sfx_pct, store=store)
 
     screen_state = "menu"
     mode = PLAYER_VS_PLAYER
@@ -140,6 +142,8 @@ def main():
                         running = False
                     elif result == "test_sfx":
                         audio.play_sfx("capture")
+                    elif result in ("theme_changed", "skin_changed", "buy_skin"):
+                        audio.play_sfx("click")
                     elif isinstance(result, dict):
                         if result.get("audio_changed"):
                             audio.set_bgm_volume(result["bgm"])
@@ -153,8 +157,6 @@ def main():
                             start_new_match()
                             screen_state = "playing"
                     elif gui.menu_page != prev_page:
-                        audio.play_sfx("click")
-                    elif result in ("theme_changed", "skin_changed"):
                         audio.play_sfx("click")
 
             elif screen_state == "playing":
@@ -211,6 +213,7 @@ def main():
                 if not state.is_game_over() and current_bot_type(mode, state.curr_player, ai_type) is not None:
                     ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000)
 
+        # Simpan laporan performa ke .txt tepat satu kali saat match selesai
         if screen_state == "playing" and state.is_game_over() and not match_logged:
             labels = gui._player_labels(mode, ai_type)
             save_match_report(
