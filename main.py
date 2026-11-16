@@ -1,4 +1,5 @@
 import sys
+import time
 import pygame
 
 from config import (
@@ -10,14 +11,38 @@ from src.game_logic import GameState
 from src.gui import GameGUI
 from src.ai.minimax import get_minimax_move
 from src.ai.mcts import get_mcts_move
+from src.logger import save_match_report
+
+LOG_FILE = "logs/match_results.txt"
 
 
 def compute_ai_move(state, ai_type):
+    safe_moves = state.get_safe_moves()
+    capturing_moves = state.get_capturing_moves()
+    good_moves = set(safe_moves) | set(capturing_moves)
+    stats = {}
+    t0 = time.perf_counter()
+
     if ai_type == MINIMAX:
         total_boxes = state.row * state.col
         depth = MINIMAX_DEPTH if total_boxes <= 25 else min(MINIMAX_DEPTH, 3)
-        return get_minimax_move(state, depth=depth, time_limit=1.5)
-    return get_mcts_move(state, iterations=MCTS_ITERATION)
+        move = get_minimax_move(state, depth=depth, time_limit=1.5, stats=stats)
+        agent_name = "Minimax"
+    else:
+        move = get_mcts_move(state, iterations=MCTS_ITERATION, stats=stats)
+        agent_name = "MCTS"
+
+    elapsed_ms = (time.perf_counter() - t0) * 1000.0
+    is_blunder = bool(good_moves) and (move not in good_moves)
+
+    move_record = {
+        "agent": agent_name,
+        "player": state.curr_player,
+        "time_ms": elapsed_ms,
+        "blunder": is_blunder,
+        **stats,
+    }
+    return move, move_record
 
 
 def current_bot_type(mode, curr_player, selected_ai):
@@ -45,15 +70,19 @@ def main():
     rows, cols = 4, 4
     state = GameState(rows, cols)
     ai_wait_until = 0
+    move_logs = []
+    match_logged = False
 
     def start_new_match():
-        nonlocal state, ai_wait_until
+        nonlocal state, ai_wait_until, move_logs, match_logged
         state = GameState(rows, cols)
+        move_logs = []
+        match_logged = False
         ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000) if mode == AI_VS_AI else 0
 
     def request_game_action(action):
         nonlocal screen_state
-        if is_match_in_progress(state, ):
+        if is_match_in_progress(state):
             gui.open_confirm(action)
         elif action == "menu":
             gui.reset_menu()
@@ -136,11 +165,21 @@ def main():
         pygame.display.flip()
 
         if is_ai_turn and now >= ai_wait_until:
-            move = compute_ai_move(state, active_bot)
+            move, record = compute_ai_move(state, active_bot)
             if move is not None:
+                move_logs.append(record)
                 state.make_move(move)
                 if not state.is_game_over() and current_bot_type(mode, state.curr_player, ai_type) is not None:
                     ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000)
+
+        # Simpan laporan ke .txt
+        if screen_state == "playing" and state.is_game_over() and not match_logged:
+            labels = gui._player_labels(mode, ai_type)
+            save_match_report(
+                LOG_FILE, mode, rows, cols,
+                labels[P1], labels[P2], state, move_logs,
+            )
+            match_logged = True
 
         clock.tick(FPS)
 
