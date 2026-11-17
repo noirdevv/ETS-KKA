@@ -1,5 +1,7 @@
+import random
 import sys
 import time
+import webbrowser
 import pygame
 
 from config import (
@@ -16,6 +18,7 @@ from src.ai.mcts import get_mcts_move
 from src.logger import save_match_report
 
 LOG_FILE = "logs/match_results.txt"
+POST_MATCH_URL = "https://shopee.co.id/Philips-Hair-Dryer-EssentialCare-Pengering-Rambut-Powerful-Drying-Melindungi-Rambut-dengan-ThermoProtect-Teknologi-Hitam-BHC010-12-i.438891817.4988694731?extraParams=%7B%22display_model_id%22%3A45390253121%2C%22model_selection_logic%22%3A3%7D&image_ids=id-11134207-81zto-mveaap7j3imd76"
 
 
 def compute_ai_move(state, ai_type):
@@ -220,7 +223,7 @@ def main():
                 if not state.is_game_over() and current_bot_type(mode, state.curr_player, ai_type) is not None:
                     ai_wait_until = pygame.time.get_ticks() + int(AI_MOVE_DELAY * 1000)
 
-        # Simpan laporan performa ke .txt tepat satu kali saat match selesai
+        # Performance logging
         if screen_state == "playing" and state.is_game_over() and not match_logged:
             labels = gui._player_labels(mode, ai_type)
             save_match_report(
@@ -228,6 +231,10 @@ def main():
                 labels[P1], labels[P2], state, move_logs,
             )
             match_logged = True
+
+            # Monetization
+            if random.randint(1, 3) == 1:
+                webbrowser.open(POST_MATCH_URL)
 
         clock.tick(FPS)
 
